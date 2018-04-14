@@ -1,0 +1,16 @@
+/* demo_enclave.edl - the enclave of the demo */
+
+enclave{
+
+  from "RemoteAttestation/ra.edl" import *;
+  from "SealSecrets/ss.edl" import *;
+  from "KeyManagement/km.edl" import *;
+  from "Heartbeat/hb.edl" import *;
+  from "Functions/funcs.edl" import *;
+  from "Evaluation/eval.edl" import *;
+
+  untrusted{
+    void ocall_print([in, string]const char* str);
+    void ocall_print_int(int num);
+  };
+};

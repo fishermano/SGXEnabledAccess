@@ -1,0 +1,8 @@
+/* funcs.edl - an enclave for performing functions */
+
+enclave{
+  trusted{
+    public sgx_status_t ecall_perform_statistics([in,size=secret_size_1] uint8_t* p_secret_1, uint32_t secret_size_1, [in,count=16] uint8_t* gcm_mac_1, uint8_t dev_id_1, [in,size=secret_size_2] uint8_t* p_secret_2, uint32_t secret_size_2, [in,count=16] uint8_t* gcm_mac_2, uint8_t dev_id_2, [out] uint32_t *result);
+
+  };
+};

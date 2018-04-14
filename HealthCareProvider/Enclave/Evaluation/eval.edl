@@ -1,0 +1,8 @@
+/* eval.edl - an enclave for evaluation */
+
+enclave{
+
+  trusted{
+    public sgx_status_t ecall_evaluate_decryption([in, size=total_size] uint8_t *p_files, uint32_t file_number, uint32_t total_size);
+  };
+};
