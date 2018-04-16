@@ -40,6 +40,13 @@ extern "C" {
    uint8_t reserved[3];
    uint8_t body[];
  }pkg_header_t;
+
+ typedef struct _pkg_t{
+   uint8_t type;
+   uint32_t size;
+   uint8_t reserved[3];
+   uint8_t body[1024];
+ }pkg_t;
 #pragma pack()
 
 #ifdef __cplusplus

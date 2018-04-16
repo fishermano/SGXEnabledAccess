@@ -666,61 +666,6 @@ int SGX_CDECL main(int argc, char *argv[]){
     fprintf(OUTPUT, "\nRemote attestation success!\n\n");
   }
 
-  /*
-    evaluation
-  */
-
-
-  // for(int q = 0; q < FILE_NUM; q++){
-  //   sample_rijndael128GCM_encrypt(&ssk,
-  //           &evaluation_data_1[0],
-  //           8,
-  //           eval_files[q].payload,
-  //           &aes_gcm_iv[0],
-  //           SAMPLE_SP_IV_SIZE,
-  //           NULL,
-  //           0,
-  //           &eval_files[q].payload_tag);
-  //   eval_files[q].payload_size = 8;
-  // }
-  //
-  // clock_t start, end;
-  // double exe_time;
-  // int v;
-  //
-  // for(v = 1000; v <= FILE_NUM; ){
-  //   start = clock();
-  //   // for(int b = 0; b < v; b++){
-  //   //   ret = sgx_rijndael128GCM_decrypt(&ssk, eval_files[b].payload, eval_files[b].payload_size, &evaluation_data_2[0], &aes_gcm_iv[0], 12, NULL, 0, (const sgx_aes_gcm_128bit_tag_t *)(eval_files[b].payload_tag));
-  //   //   if(SGX_SUCCESS != ret){
-  //   //     fprintf(OUTPUT, "\nError, evaluation decryption using shared key based AESGCM failed in [%s]. ret = 0x%0x.", __FUNCTION__, ret);
-  //   //   }
-  //   // }
-  //   end = clock();
-  //   exe_time = (double)(end - start)/CLOCKS_PER_SEC;
-  //   // printf("\nfile numbers: %d; time: %lf\n", FILE_NUM, exe_time);
-  //   printf("\nwriting to baseline result file\n");
-  //   write_result(BASELINE_RESULT_FILE, v, exe_time);
-  //   v = v + 1000;
-  // }
-  //
-  //
-  // for(v = 1000; v <= FILE_NUM; ){
-  //   start = clock();
-  //   ret = ecall_evaluate_decryption(global_eid, &status, &eval_files[0].payload_size, v, v*32);
-  //   end = clock();
-  //   exe_time = (double)(end - start)/CLOCKS_PER_SEC;
-  //   // printf("\nfile numbers: %d; time: %lf\n", FILE_NUM, exe_time);
-  //   printf("\nwriting to result file\n");
-  //   write_result(RESULT_FILE, v, exe_time);
-  //   v = v + 1000;
-  //
-  //   if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
-  //     fprintf(OUTPUT, "\nError, evaluation decryption using shared key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x", __FUNCTION__, ret, status);
-  //   }
-  // }
-
-
 
 CLEANUP:
 
@@ -814,7 +759,7 @@ CLEANUP:
 
   fprintf(OUTPUT, "\nHealth Care Provider key request package generated\n");
 
-  ret = kq_network_send_receive("http://demo_testing.cnsr.vt.edu/", key_req, &key_resp);
+  ret = kq_network_send_receive("127.0.0.1", key_req, &key_resp);
 
   if(ret !=0 || !key_resp){
     ret = -1;
@@ -831,68 +776,68 @@ CLEANUP:
 
   fprintf(OUTPUT, "\nDevice keys loaded in the enclave.\n");
 
-  fprintf(OUTPUT, "\n\n***Starting Data Request Functionality***\n");
-
-  fprintf(OUTPUT, "\nRequest data from the cloud storage.\n");
-
-  fprintf(OUTPUT, "\nDev0_0\n");
-  ret = dr_network_send_receive("http://demo_testing.storage.cloud/", 0, 0, &dev_0_offset_0_data_resp);
-
-  if(ret !=0 || !dev_0_offset_0_data_resp){
-    ret = -1;
-    fprintf(OUTPUT, "\nError, dev 0 offset 0 data retrieve failed [%s].", __FUNCTION__);
-  }
-
-  fprintf(OUTPUT, "\nDev0_1\n");
-  p_enc_dev_0_offset_0_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_0_data_resp + sizeof(pkg_header_t));
-
-  ret = dr_network_send_receive("http://demo_testing.storage.cloud/", 0, 1, &dev_0_offset_1_data_resp);
-
-  if(ret !=0 || !dev_0_offset_1_data_resp){
-    ret = -1;
-    fprintf(OUTPUT, "\nError, dev 0 offset 1 data retrieve failed [%s].", __FUNCTION__);
-  }
-
-  fprintf(OUTPUT, "\nDev0_2\n");
-  p_enc_dev_0_offset_1_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_1_data_resp + sizeof(pkg_header_t));
-
-  ret = dr_network_send_receive("http://demo_testing.storage.cloud/", 0, 2, &dev_0_offset_2_data_resp);
-
-  if(ret !=0 || !dev_0_offset_2_data_resp){
-    ret = -1;
-    fprintf(OUTPUT, "\nError, dev 0 offset 2 data retrieve failed [%s].", __FUNCTION__);
-  }
-
-  p_enc_dev_0_offset_2_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_2_data_resp + sizeof(pkg_header_t));
-
-  printf("\n***Perform Statistics Function Over Dev0_0, Dev0_1***\n\n");
-
-  ret = ecall_perform_statistics(global_eid, &status, p_enc_dev_0_offset_0_data->payload, p_enc_dev_0_offset_0_data->payload_size, p_enc_dev_0_offset_0_data->payload_tag, 0,  p_enc_dev_0_offset_1_data->payload, p_enc_dev_0_offset_1_data->payload_size, p_enc_dev_0_offset_1_data->payload_tag, 0, &perform_sum_fun_result);
-
-
-  printf("\nthe final sum value returned from the enclave is: %d\n\n", perform_sum_fun_result);
-
-  /*
-    start heartbeat mechanism for the enclave, or no ecall function can be executed
-  */
-
-  printf("\n\n***Starting Heartbeat Functionality***\n");
-  // ecall_start_heartbeat(global_eid, &status);
-
-  pthread_create(&hb_id, NULL, heartbeat_event_loop, (void *)&hb_freq);
-
-  for(int c=1; c <= 15; c++){
-    printf("\n\nMain thread: %d\n", c);
-
-    printf("\n***Perform Statistics Function Over Dev0_0, Dev0_1***\n\n");
-
-    ret = ecall_perform_statistics(global_eid, &status, p_enc_dev_0_offset_0_data->payload, p_enc_dev_0_offset_0_data->payload_size, p_enc_dev_0_offset_0_data->payload_tag, 0,  p_enc_dev_0_offset_1_data->payload, p_enc_dev_0_offset_1_data->payload_size, p_enc_dev_0_offset_1_data->payload_tag, 0, &perform_sum_fun_result);
-
-
-    printf("\nthe final sum value returned from the enclave is: %d\n\n", perform_sum_fun_result);
-
-    sleep(3);
-  }
+  // fprintf(OUTPUT, "\n\n***Starting Data Request Functionality***\n");
+  //
+  // fprintf(OUTPUT, "\nRequest data from the cloud storage.\n");
+  //
+  // fprintf(OUTPUT, "\nDev0_0\n");
+  // ret = dr_network_send_receive("http://demo_testing.storage.cloud/", 0, 0, &dev_0_offset_0_data_resp);
+  //
+  // if(ret !=0 || !dev_0_offset_0_data_resp){
+  //   ret = -1;
+  //   fprintf(OUTPUT, "\nError, dev 0 offset 0 data retrieve failed [%s].", __FUNCTION__);
+  // }
+  //
+  // fprintf(OUTPUT, "\nDev0_1\n");
+  // p_enc_dev_0_offset_0_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_0_data_resp + sizeof(pkg_header_t));
+  //
+  // ret = dr_network_send_receive("http://demo_testing.storage.cloud/", 0, 1, &dev_0_offset_1_data_resp);
+  //
+  // if(ret !=0 || !dev_0_offset_1_data_resp){
+  //   ret = -1;
+  //   fprintf(OUTPUT, "\nError, dev 0 offset 1 data retrieve failed [%s].", __FUNCTION__);
+  // }
+  //
+  // fprintf(OUTPUT, "\nDev0_2\n");
+  // p_enc_dev_0_offset_1_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_1_data_resp + sizeof(pkg_header_t));
+  //
+  // ret = dr_network_send_receive("http://demo_testing.storage.cloud/", 0, 2, &dev_0_offset_2_data_resp);
+  //
+  // if(ret !=0 || !dev_0_offset_2_data_resp){
+  //   ret = -1;
+  //   fprintf(OUTPUT, "\nError, dev 0 offset 2 data retrieve failed [%s].", __FUNCTION__);
+  // }
+  //
+  // p_enc_dev_0_offset_2_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_2_data_resp + sizeof(pkg_header_t));
+  //
+  // printf("\n***Perform Statistics Function Over Dev0_0, Dev0_1***\n\n");
+  //
+  // ret = ecall_perform_statistics(global_eid, &status, p_enc_dev_0_offset_0_data->payload, p_enc_dev_0_offset_0_data->payload_size, p_enc_dev_0_offset_0_data->payload_tag, 0,  p_enc_dev_0_offset_1_data->payload, p_enc_dev_0_offset_1_data->payload_size, p_enc_dev_0_offset_1_data->payload_tag, 0, &perform_sum_fun_result);
+  //
+  //
+  // printf("\nthe final sum value returned from the enclave is: %d\n\n", perform_sum_fun_result);
+  //
+  // /*
+  //   start heartbeat mechanism for the enclave, or no ecall function can be executed
+  // */
+  //
+  // printf("\n\n***Starting Heartbeat Functionality***\n");
+  // // ecall_start_heartbeat(global_eid, &status);
+  //
+  // pthread_create(&hb_id, NULL, heartbeat_event_loop, (void *)&hb_freq);
+  //
+  // for(int c=1; c <= 15; c++){
+  //   printf("\n\nMain thread: %d\n", c);
+  //
+  //   printf("\n***Perform Statistics Function Over Dev0_0, Dev0_1***\n\n");
+  //
+  //   ret = ecall_perform_statistics(global_eid, &status, p_enc_dev_0_offset_0_data->payload, p_enc_dev_0_offset_0_data->payload_size, p_enc_dev_0_offset_0_data->payload_tag, 0,  p_enc_dev_0_offset_1_data->payload, p_enc_dev_0_offset_1_data->payload_size, p_enc_dev_0_offset_1_data->payload_tag, 0, &perform_sum_fun_result);
+  //
+  //
+  //   printf("\nthe final sum value returned from the enclave is: %d\n\n", perform_sum_fun_result);
+  //
+  //   sleep(3);
+  // }
 
 FINAL:
 

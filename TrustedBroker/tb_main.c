@@ -7,6 +7,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "key_management.h"
+
 #include "network.h"
 
 #define LEN_OF_PACKAGE_HEADER 8
@@ -24,7 +26,6 @@ int main(int argc, char** argv){
 
   int socket_fd, connect_fd;
   struct sockaddr_in servaddr;
-  int n;
 
   //initialize socket
   if( (socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1 ){
@@ -50,53 +51,81 @@ int main(int argc, char** argv){
     exit(0);
   }
 
-  printf("=======waiting for hcp's request=======\n");
   while(1){
+    printf("=======waiting for hcp's request=======\n");
     if( (connect_fd = accept(socket_fd, (struct sockaddr*)NULL, NULL)) == -1 ){
-      printf("accept socket error: %s(errno: %d)", strerror(errno), errno);
+      printf("trusted broker accept socket error: %s(errno: %d)", strerror(errno), errno);
       continue;
     }
 
-    header *pkg_header = (header *)malloc(sizeof(header));
-    char *pkg_header_buf = (char *)malloc(LEN_OF_PACKAGE_HEADER);
     //receive package header from hcp
-    n = recv(connect_fd, pkg_header_buf, LEN_OF_PACKAGE_HEADER, 0);
+
+    printf("+++++++trusted broker receiving request from hcp+++++++\n");
+
+    int req_pkg_size = sizeof(pkg_t);
+    char *req_data_buf = (char *)malloc(req_pkg_size);
+    int n = recv(connect_fd, req_data_buf, req_pkg_size, 0);
     if( n < 0 ){
-      printf("server receive data failed!\n");
-      break;
+      printf("trusted broker receive data error: %s(errno: %d)", strerror(errno), errno);
+      exit(0);
     }
-    memcpy(pkg_header, pkg_header_buf, LEN_OF_PACKAGE_HEADER);
 
-    uint32_t data_size = pkg_header->size;
-    pkg_header_t *pkg = (pkg_header_t *)malloc(sizeof(pkg_header_t) + data_size);
-    memcpy(pkg, pkg_header, LEN_OF_PACKAGE_HEADER);
+    pkg_t *pkg_tmp = (pkg_t *)malloc(sizeof(pkg_t));
+    memcpy(pkg_tmp, req_data_buf, req_pkg_size);
 
-    char *data_buf = (char *)malloc(data_size);
+    pkg_header_t *pkg = (pkg_header_t *)malloc(sizeof(pkg_header_t) + pkg_tmp->size);
+    pkg->type = pkg_tmp->type;
+    pkg->size = pkg_tmp->size;
+    memcpy(pkg->body, pkg_tmp->body, pkg_tmp->size);
 
-    int pos = 0;
-    while(pos < data_size){
-      n = recv(connect_fd, data_buf+pos, BUFFER_SIZE, 0);
-      if( n < 0 ){
-        printf("server receive data failed!\n");
+    int ret = 0;
+    switch( pkg->type ){
+      case TYPE_RA_MSG0:
+
         break;
-      }
-      pos += n;
+      case TYPE_RA_MSG1:
+
+        break;
+      case TYPE_RA_MSG3:
+
+        break;
+      case TYPE_KEY_REQ:
+        pkg_header_t *p_resp_msg;
+        ret = sp_km_proc_key_req((const hcp_samp_certificate_t*)((uint8_t*)pkg
+            + sizeof(pkg_header_t)), &p_resp_msg);
+        if(0 != ret)
+        {
+            printf("call sp_km_proc_key_req fail error: %s(errno: %d)", strerror(errno), errno);
+        }
+
+        if( !fork() ){
+
+          printf("+++++++trusted broker sending response to hcp+++++++\n");
+
+          pkg_t *test_pkg = (pkg_t *)malloc(sizeof(pkg_t));
+          test_pkg->type = p_resp_msg->type;
+          test_pkg->size = p_resp_msg->size;
+          memcpy(test_pkg->body, p_resp_msg->body, p_resp_msg->size);
+
+          int res_pkg_size = sizeof(pkg_t);
+          char *res_data_buf = (char *)malloc(res_pkg_size);
+          memcpy(res_data_buf, test_pkg, res_pkg_size);
+
+          n = send(connect_fd, res_data_buf, res_pkg_size, 0);
+          if( n <= 0){
+            printf("trusted broker send response data error: %s(errno: %d)", strerror(errno), errno);
+            break;
+          }
+
+        }
+
+        break;
+      default:
+        printf("unknown package type error: %s(errno: %d)", strerror(errno), errno);
+        break;
     }
-    memcpy(pkg+LEN_OF_PACKAGE_HEADER, data_buf, data_size);
 
-
-    //send back reponse data to client
-    if( !fork() ){
-      if( send(connect_fd, "hello, you are connected!\n", 26, 0) == -1){
-        perror("send error");
-      }
-
-      close(connect_fd);
-
-    }
-
-    free(data_buf);
-    free(pkg_header_buf);
+    close(connect_fd);
     //close(connect_fd);
   }
 

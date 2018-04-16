@@ -1,9 +1,15 @@
 #include "sgx_ukey_exchange.h"
 
-#include <stdio.h>
 #include <dirent.h>
-#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "utils.h"
 #include "remote_attestation_result.h"
@@ -12,6 +18,10 @@
 #include "ThirdPartyLibrary/key_management.h"
 #include "ThirdPartyLibrary/data_upload.h"
 #include "ThirdPartyLibrary/heartbeat.h"
+
+#define LEN_OF_PACKAGE_HEADER 8
+#define BUFFER_SIZE 4096
+#define DEFAULT_PORT 8000
 
 // Some utility functions to output some of the data structures passed between
 // the app and the trusted broker.
@@ -165,25 +175,65 @@ int ra_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
 
 int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, pkg_header_t **p_resp){
   int ret = 0;
-  pkg_header_t *p_resp_msg;
 
-  if((NULL == server_url) || (NULL == p_req) || (NULL == p_resp)){
+  int socket_fd;
+  struct sockaddr_in servaddr;
+  pkg_t *test_pkg = (pkg_t *)malloc(sizeof(pkg_t));
+  test_pkg->type = p_req->type;
+  test_pkg->size = p_req->size;
+  memcpy(test_pkg->body, p_req->body, p_req->size);
+
+  if( (socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ){
+    printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
     ret = -1;
     return ret;
   }
 
-  ret = sp_km_proc_key_req((const hcp_samp_certificate_t*)((uint8_t*)p_req
-      + sizeof(pkg_header_t)), &p_resp_msg);
+  memset(&servaddr, 0, sizeof(servaddr));
+  servaddr.sin_family = AF_INET;
+  servaddr.sin_addr.s_addr = inet_addr(server_url);
+  servaddr.sin_port = htons(DEFAULT_PORT);
 
-  if(0 != ret)
-  {
-      fprintf(stderr, "\nError, call sp_km_proc_key_req fail [%s].",
-          __FUNCTION__);
+  if( connect(socket_fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 ){
+    printf("connect error: %s(errno: %d)\n", strerror(errno), errno);
+    ret = -1;
+    return ret;
   }
-  else
-  {
-      *p_resp = p_resp_msg;
+
+  printf("+++++++hcp sending key request+++++++\n");
+
+  int req_pkg_size = sizeof(pkg_t);
+  char *req_data_buf = (char *)malloc(req_pkg_size);
+  memcpy(req_data_buf, test_pkg, req_pkg_size);
+
+  int n = 0;
+  n = send(socket_fd, req_data_buf, req_pkg_size, 0);
+  if( n <= 0){
+    printf("hcp send request data error: %s(errno: %d)", strerror(errno), errno);
+    ret = -1;
+    return ret;
   }
+
+  printf("+++++++hcp receiving response from hcp+++++++\n");
+
+  int res_pkg_size = sizeof(pkg_t);
+  char *res_data_buf = (char *)malloc(res_pkg_size);
+  n = recv(socket_fd, res_data_buf, res_pkg_size, 0);
+  if( n < 0 ){
+    printf("hcp receive data error: %s(errno: %d)", strerror(errno), errno);
+    ret = -1;
+    return ret;
+  }
+
+  pkg_t *pkg = (pkg_t *)malloc(sizeof(pkg_t));
+  memcpy(pkg, res_data_buf, res_pkg_size);
+
+  pkg_header_t *res_tmp = (pkg_header_t *)malloc(sizeof(pkg_header_t) + pkg->size);
+  res_tmp->type = pkg->type;
+  res_tmp->size = pkg->size;
+  memcpy(res_tmp->body, pkg->body, pkg->size);
+
+  *p_resp = res_tmp;
 
   return ret;
 }

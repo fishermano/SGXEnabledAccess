@@ -6,6 +6,12 @@
 // Needed for definition of network package.
 #include "network.h"
 
+typedef struct{
+  uint8_t type;
+  uint32_t size;
+  uint8_t reserved[3];
+}header;
+
 /*
   for printing some data in memory
 */

@@ -61,7 +61,7 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -LThirdPartyLibrary -l$(Urts_Library_Name) -lsgx_ukey_exchange -lpthread -lremote_attestation -lkey_management -ldata_upload -lsample_libcrypto -lheartbeat -Wl,-rpath=$(CURDIR)/ThirdPartyLibrary -Wl,-rpath=$(CURDIR)
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -LThirdPartyLibrary -l$(Urts_Library_Name) -lsgx_ukey_exchange -lpthread -lremote_attestation -ldata_upload -lsample_libcrypto -lheartbeat -lkey_management -Wl,-rpath=$(CURDIR)/ThirdPartyLibrary -Wl,-rpath=$(CURDIR)
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
