@@ -1,8 +1,18 @@
 #ifndef _KEY_MANAGEMENT_H
 #define _KEY_MANAGEMENT_H
 
-#include "key_delivery.h"
+#include "network.h"
 #include "sample_libcrypto.h"
+
+typedef struct sp_samp_dev_key_t{
+  uint8_t dev_id;
+  sample_aes_gcm_128bit_key_t key;
+}sp_samp_dev_key_t;
+
+typedef struct sp_samp_ssk_t{
+  uint8_t hcp_id;
+  sample_aes_gcm_128bit_key_t key;
+}sp_samp_ssk_t;
 
 typedef struct hcp_samp_certificate_t{
   uint8_t id;
@@ -14,6 +24,10 @@ typedef struct sp_samp_key_set_t{
   sample_aes_gcm_128bit_key_t keys[];
 }sp_samp_key_set_t;
 
-int sp_km_proc_key_req(const hcp_samp_certificate_t *request, kd_samp_package_header_t **response);
+int key_generate(uint8_t dev_id);
+
+int key_access(uint8_t hcp_id, sp_samp_key_set_t **pp_key_set);
+
+int sp_km_proc_key_req(const hcp_samp_certificate_t *request, pkg_header_t **response);
 
 #endif

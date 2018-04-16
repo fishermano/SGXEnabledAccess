@@ -3,7 +3,7 @@
 
 Remote_Attestation_C_Files := RemoteAttestation/ecp.c RemoteAttestation/remote_attestation.c RemoteAttestation/ias_ra.c
 
-Remote_Attestation_Include_Paths := -IRemoteAttestation -IThirdPartyLibrary -IKeyManagement
+Remote_Attestation_Include_Paths := -IIncludes -IRemoteAttestation -IThirdPartyLibrary -IKeyManagement
 
 Remote_Attestation_C_Flags := -fPIC -Wno-attributes $(Remote_Attestation_Include_Paths)
 Remote_Attestation_Cpp_Flags := $(Remote_Attestation_C_Flags) -std=c++11
@@ -15,7 +15,7 @@ Remote_Attestation_C_Objects := $(Remote_Attestation_C_Files:.c=.o)
 
 Key_Management_C_Files := KeyManagement/key_management.c KeyManagement/DKL.c KeyManagement/SSKL.c
 
-Key_Management_Include_Paths := -IRemoteAttestation -IKeyManagement -IThirdPartyLibrary -IPolicyManagement
+Key_Management_Include_Paths := -IIncludes -IRemoteAttestation -IKeyManagement -IThirdPartyLibrary -IPolicyManagement
 
 Key_Management_C_Flags := -fPIC -Wno-attributes $(Key_Management_Include_Paths)
 Key_Management_Cpp_Flags := $(Key_Management_C_Flags) -std=c++11
@@ -27,7 +27,7 @@ Key_Management_C_Objects := $(Key_Management_C_Files:.c=.o)
 
 Data_Upload_C_Files := DataUpload/data_upload.c
 
-Data_Upload_Include_Paths := -IRemoteAttestation -IDataUpload -IThirdPartyLibrary -IDataSample -IKeyManagement
+Data_Upload_Include_Paths := -IIncludes -IRemoteAttestation -IDataUpload -IThirdPartyLibrary -IDataSample -IKeyManagement
 
 Data_Upload_C_Flags := -fPIC -Wno-attributes $(Data_Upload_Include_Paths)
 Data_Upload_Cpp_Flags := $(Data_Upload_C_Flags) -std=c++11
@@ -63,7 +63,7 @@ Policy_Management_C_Objects := $(Policy_Management_C_Files:.c=.o)
 
 Heartbeat_C_Files := Heartbeat/heartbeat.c
 
-Heartbeat_Include_Paths := -IRemoteAttestation -IHeartbeat -IThirdPartyLibrary -IKeyManagement
+Heartbeat_Include_Paths := -IIncludes -IRemoteAttestation -IHeartbeat -IThirdPartyLibrary -IKeyManagement
 
 Heartbeat_C_Flags := -fPIC -Wno-attributes $(Heartbeat_Include_Paths)
 Heartbeat_Cpp_Flags := $(Heartbeat_C_Flags) -std=c++11

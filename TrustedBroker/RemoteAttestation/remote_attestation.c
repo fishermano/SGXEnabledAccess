@@ -170,10 +170,10 @@ int sp_ra_proc_msg0_req(const sample_ra_msg0_t *p_msg0,
 // Verify message 1 then generate and return message 2 to isv.
 int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 						uint32_t msg1_size,
-						ra_samp_response_header_t **pp_msg2)
+						pkg_header_t **pp_msg2)
 {
     int ret = 0;
-    ra_samp_response_header_t* p_msg2_full = NULL;
+    pkg_header_t* p_msg2_full = NULL;
     sample_ra_msg2_t *p_msg2 = NULL;
     sample_ecc_state_handle_t ecc_state = NULL;
     sample_status_t sample_ret = SAMPLE_SUCCESS;
@@ -327,21 +327,21 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 #endif
 
         uint32_t msg2_size = sizeof(sample_ra_msg2_t) + sig_rl_size;
-        p_msg2_full = (ra_samp_response_header_t*)malloc(msg2_size
-                      + sizeof(ra_samp_response_header_t));
+        p_msg2_full = (pkg_header_t*)malloc(msg2_size
+                      + sizeof(pkg_header_t));
         if(!p_msg2_full)
         {
             fprintf(stderr, "\nError, out of memory in [%s].", __FUNCTION__);
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        memset(p_msg2_full, 0, msg2_size + sizeof(ra_samp_response_header_t));
+        memset(p_msg2_full, 0, msg2_size + sizeof(pkg_header_t));
         p_msg2_full->type = TYPE_RA_MSG2;
         p_msg2_full->size = msg2_size;
         // The simulated message2 always passes.  This would need to be set
         // accordingly in a real service provider implementation.
-        p_msg2_full->status[0] = 0;
-        p_msg2_full->status[1] = 0;
+        p_msg2_full->reserved[0] = 0;
+        p_msg2_full->reserved[1] = 0;
         p_msg2 = (sample_ra_msg2_t *)p_msg2_full->body;
 
         // Assemble MSG2
@@ -440,7 +440,7 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 // Process remote attestation message 3
 int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
                         uint32_t msg3_size,
-                        ra_samp_response_header_t **pp_att_result_msg)
+                        pkg_header_t **pp_att_result_msg)
 {
     int ret = 0;
     sample_status_t sample_ret = SAMPLE_SUCCESS;
@@ -449,7 +449,7 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
     sample_sha_state_handle_t sha_handle = NULL;
     sample_report_data_t report_data = {0};
     sample_ra_att_result_msg_t *p_att_result_msg = NULL;
-    ra_samp_response_header_t* p_att_result_msg_full = NULL;
+    pkg_header_t* p_att_result_msg_full = NULL;
     uint32_t i;
 
     if((!p_msg3) ||
@@ -606,8 +606,8 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
         // Respond the client with the results of the attestation.
         uint32_t att_result_msg_size = sizeof(sample_ra_att_result_msg_t);
         p_att_result_msg_full =
-            (ra_samp_response_header_t*)malloc(att_result_msg_size
-            + sizeof(ra_samp_response_header_t) + sizeof(hcp_0.key));
+            (pkg_header_t*)malloc(att_result_msg_size
+            + sizeof(pkg_header_t) + sizeof(hcp_0.key));
         if(!p_att_result_msg_full)
         {
             fprintf(stderr, "\nError, out of memory in [%s].", __FUNCTION__);
@@ -615,16 +615,16 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
             break;
         }
         memset(p_att_result_msg_full, 0, att_result_msg_size
-               + sizeof(ra_samp_response_header_t) + sizeof(hcp_0.key));
+               + sizeof(pkg_header_t) + sizeof(hcp_0.key));
         p_att_result_msg_full->type = TYPE_RA_ATT_RESULT;
         p_att_result_msg_full->size = att_result_msg_size;
         if(IAS_QUOTE_OK != attestation_report.status)
         {
-            p_att_result_msg_full->status[0] = 0xFF;
+            p_att_result_msg_full->reserved[0] = 0xFF;
         }
         if(IAS_PSE_OK != attestation_report.pse_status)
         {
-            p_att_result_msg_full->status[1] = 0xFF;
+            p_att_result_msg_full->reserved[1] = 0xFF;
         }
 
         p_att_result_msg =

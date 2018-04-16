@@ -66,9 +66,9 @@ int key_access(uint8_t hcp_id, sp_samp_key_set_t **pp_key_set){
   return 0;
 }
 
-int sp_km_proc_key_req(const hcp_samp_certificate_t *p_req, kd_samp_package_header_t **response){
+int sp_km_proc_key_req(const hcp_samp_certificate_t *p_req, pkg_header_t **response){
 
-  kd_samp_package_header_t *p_resp = NULL;
+  pkg_header_t *p_resp = NULL;
   sp_aes_gcm_data_t *p_encrypted_keys = NULL;
   sp_samp_key_set_t *p_key_set = NULL;
 
@@ -122,14 +122,14 @@ int sp_km_proc_key_req(const hcp_samp_certificate_t *p_req, kd_samp_package_head
 
   p_encrypted_keys->payload_size = key_set_size;
 
-  p_resp = (kd_samp_package_header_t *)malloc(sizeof(kd_samp_package_header_t) + sizeof(sp_aes_gcm_data_t) + key_set_size);
+  p_resp = (pkg_header_t *)malloc(sizeof(pkg_header_t) + sizeof(sp_aes_gcm_data_t) + key_set_size);
   if(!p_resp){
     fprintf(stderr, "\nError, out of memory in [%s].", __FUNCTION__);
     return -1;
   }
-  memset(p_resp, 0, sizeof(kd_samp_package_header_t) + sizeof(sp_aes_gcm_data_t) + key_set_size);
+  memset(p_resp, 0, sizeof(pkg_header_t) + sizeof(sp_aes_gcm_data_t) + key_set_size);
 
-  p_resp->type = TYPE_KEY_RESPONSE;
+  p_resp->type = TYPE_KEY_RES;
   p_resp->size = sizeof(sp_aes_gcm_data_t) + key_set_size;
 
   memcpy(p_resp->body, p_encrypted_keys, sizeof(sp_aes_gcm_data_t) + key_set_size);

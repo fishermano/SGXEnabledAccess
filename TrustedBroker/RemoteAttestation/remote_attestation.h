@@ -3,7 +3,7 @@
 
 #include "remote_attestation_result.h"
 #include "ias_ra.h"
-#include "network_ra.h"
+#include "network.h"
 
 typedef enum {
     SP_OK,
@@ -87,11 +87,11 @@ int sp_ra_proc_msg0_req(const sample_ra_msg0_t *p_msg0,
 
 int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
 						uint32_t msg1_size,
-						ra_samp_response_header_t **pp_msg2);
+						pkg_header_t **pp_msg2);
 
 int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
                         uint32_t msg3_size,
-                        ra_samp_response_header_t **pp_att_result_msg);
+                        pkg_header_t **pp_att_result_msg);
 
 int sp_ra_free_msg2(
     sample_ra_msg2_t *p_msg2);

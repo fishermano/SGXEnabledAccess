@@ -41,14 +41,6 @@
 */
 #include "sgx_uae_service.h"
 
-// #include <time.h>
-//
-// #include "evaluation.h"
-//
-// #define RESULT_FILE "./results.txt"
-// #define BASELINE_RESULT_FILE "./baseline_results.txt"
-
-// #define SAMPLE_SP_IV_SIZE        12
 
 #ifndef SAFE_FREE
 #define SAFE_FREE(ptr) {if (NULL != (ptr)) {free(ptr); (ptr) = NULL;}}
@@ -66,7 +58,7 @@ void *heartbeat_event_loop(void *freq){
   int ret = 0;
   sgx_status_t status = SGX_SUCCESS;
 
-  hb_samp_package_header_t *hb_resp = NULL;
+  pkg_header_t *hb_resp = NULL;
   sp_aes_gcm_data_t *p_enc_hb = NULL;
 
   for(int i = 0; i < 20; i++){
@@ -78,7 +70,7 @@ void *heartbeat_event_loop(void *freq){
       fprintf(stderr, "\nError, receiving heartbeat signal failed [%s].", __FUNCTION__);
     }
 
-    p_enc_hb = (sp_aes_gcm_data_t*)((uint8_t*)hb_resp + sizeof(hb_samp_package_header_t));
+    p_enc_hb = (sp_aes_gcm_data_t*)((uint8_t*)hb_resp + sizeof(pkg_header_t));
 
     ret = ecall_heartbeat_process(global_eid, &status, p_enc_hb->payload, p_enc_hb->payload_size, p_enc_hb->payload_tag);
     if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
@@ -204,22 +196,22 @@ int SGX_CDECL main(int argc, char *argv[]){
   /*
     define msg0 - msg3 and the attestation result message
   */
-  ra_samp_request_header_t *p_msg0_full = NULL;
-  ra_samp_response_header_t *p_msg0_resp_full = NULL;
-  ra_samp_request_header_t *p_msg1_full = NULL;
-  ra_samp_response_header_t *p_msg2_full = NULL;
-  ra_samp_request_header_t *p_msg3_full = NULL;
+  pkg_header_t *p_msg0_full = NULL;
+  pkg_header_t *p_msg0_resp_full = NULL;
+  pkg_header_t *p_msg1_full = NULL;
+  pkg_header_t *p_msg2_full = NULL;
+  pkg_header_t *p_msg3_full = NULL;
   sgx_ra_msg3_t *p_msg3 = NULL;
-  ra_samp_response_header_t *p_att_result_msg_full = NULL;
+  pkg_header_t *p_att_result_msg_full = NULL;
 
-  kd_samp_package_header_t *key_req = NULL;
-  kd_samp_package_header_t *key_resp = NULL;
+  pkg_header_t *key_req = NULL;
+  pkg_header_t *key_resp = NULL;
   hcp_samp_certificate_t * hcp = NULL;
   sp_aes_gcm_data_t *p_enc_dev_keys = NULL;
 
-  du_samp_package_header_t *dev_0_offset_0_data_resp = NULL;
-  du_samp_package_header_t *dev_0_offset_1_data_resp = NULL;
-  du_samp_package_header_t *dev_0_offset_2_data_resp = NULL;
+  pkg_header_t *dev_0_offset_0_data_resp = NULL;
+  pkg_header_t *dev_0_offset_1_data_resp = NULL;
+  pkg_header_t *dev_0_offset_2_data_resp = NULL;
   sp_aes_gcm_data_t *p_enc_dev_0_offset_0_data = NULL;
   sp_aes_gcm_data_t *p_enc_dev_0_offset_1_data = NULL;
   sp_aes_gcm_data_t *p_enc_dev_0_offset_2_data = NULL;
@@ -307,7 +299,7 @@ int SGX_CDECL main(int argc, char *argv[]){
     }
     fprintf(OUTPUT, "\nCall sgx_get_extended_epid_group_id success.\n");
 
-    p_msg0_full = (ra_samp_request_header_t*) malloc(sizeof(ra_samp_request_header_t) + sizeof(uint32_t));
+    p_msg0_full = (pkg_header_t*) malloc(sizeof(pkg_header_t) + sizeof(uint32_t));
 
     if(NULL == p_msg0_full){
       ret = -1;
@@ -316,7 +308,7 @@ int SGX_CDECL main(int argc, char *argv[]){
     p_msg0_full->type = TYPE_RA_MSG0;
     p_msg0_full->size = sizeof(uint32_t);
 
-    *(uint32_t*)((uint8_t*)p_msg0_full + sizeof(ra_samp_request_header_t)) = extended_epid_group_id;
+    *(uint32_t*)((uint8_t*)p_msg0_full + sizeof(pkg_header_t)) = extended_epid_group_id;
     {
 
       fprintf(OUTPUT, "\nMSG0 body generated -\n");
@@ -374,8 +366,8 @@ int SGX_CDECL main(int argc, char *argv[]){
     msg1
   */
   {
-    p_msg1_full = (ra_samp_request_header_t*)
-                  malloc(sizeof(ra_samp_request_header_t) + sizeof(sgx_ra_msg1_t));
+    p_msg1_full = (pkg_header_t*)
+                  malloc(sizeof(pkg_header_t) + sizeof(sgx_ra_msg1_t));
     if(NULL == p_msg1_full){
       ret = -1;
       goto CLEANUP;
@@ -384,7 +376,7 @@ int SGX_CDECL main(int argc, char *argv[]){
     p_msg1_full->size = sizeof(sgx_ra_msg1_t);
 
     do{
-      ret = sgx_ra_get_msg1(context, global_eid, sgx_ra_get_ga, (sgx_ra_msg1_t*)((uint8_t*)p_msg1_full + sizeof(ra_samp_request_header_t)));
+      ret = sgx_ra_get_msg1(context, global_eid, sgx_ra_get_ga, (sgx_ra_msg1_t*)((uint8_t*)p_msg1_full + sizeof(pkg_header_t)));
       sleep(3); // Wait 3s between retries
     } while (SGX_ERROR_BUSY == ret && busy_retry_time--);
 
@@ -433,13 +425,13 @@ int SGX_CDECL main(int argc, char *argv[]){
         fprintf(OUTPUT, "\nInstead, we will pretend we received the following MSG2 - \n");
 
         SAFE_FREE(p_msg2_full);
-        ra_samp_response_header_t* precomputed_msg2 =
-            (ra_samp_response_header_t*)msg2_samples[
+        pkg_header_t* precomputed_msg2 =
+            (pkg_header_t*)msg2_samples[
                 GET_VERIFICATION_ARRAY_INDEX()];
-        const size_t msg2_full_size = sizeof(ra_samp_response_header_t)
+        const size_t msg2_full_size = sizeof(pkg_header_t)
                                       +  precomputed_msg2->size;
         p_msg2_full =
-            (ra_samp_response_header_t*)malloc(msg2_full_size);
+            (pkg_header_t*)malloc(msg2_full_size);
         if(NULL == p_msg2_full)
         {
             ret = -1;
@@ -451,7 +443,7 @@ int SGX_CDECL main(int argc, char *argv[]){
                  msg2_full_size);
 
         PRINT_BYTE_ARRAY(OUTPUT, p_msg2_full,
-                         sizeof(ra_samp_response_header_t)
+                         sizeof(pkg_header_t)
                          + p_msg2_full->size);
       }else{
         goto CLEANUP;
@@ -472,7 +464,7 @@ int SGX_CDECL main(int argc, char *argv[]){
       }
 
       fprintf(OUTPUT, "\nSent MSG1 to remote attestation trusted broker. Received the following MSG2:\n");
-      PRINT_BYTE_ARRAY(OUTPUT, p_msg2_full, sizeof(ra_samp_response_header_t) + p_msg2_full->size);
+      PRINT_BYTE_ARRAY(OUTPUT, p_msg2_full, sizeof(pkg_header_t) + p_msg2_full->size);
 
       fprintf(OUTPUT, "\nA more descriptive representation of MSG2:\n");
       PRINT_ATTESTATION_SERVICE_RESPONSE(OUTPUT, p_msg2_full);
@@ -480,17 +472,17 @@ int SGX_CDECL main(int argc, char *argv[]){
       if( VERIFICATION_INDEX_IS_VALID() )
       {
         // The response should match the precomputed MSG2:
-        ra_samp_response_header_t* precomputed_msg2 =
-            (ra_samp_response_header_t *)
+        pkg_header_t* precomputed_msg2 =
+            (pkg_header_t *)
             msg2_samples[GET_VERIFICATION_ARRAY_INDEX()];
         if(MSG2_BODY_SIZE !=
-            sizeof(ra_samp_response_header_t) + p_msg2_full->size ||
+            sizeof(pkg_header_t) + p_msg2_full->size ||
             memcmp( precomputed_msg2, p_msg2_full,
-                sizeof(ra_samp_response_header_t) + p_msg2_full->size)){
+                sizeof(pkg_header_t) + p_msg2_full->size)){
 
             fprintf(OUTPUT, "\nVerification ERROR. Our precomputed value for MSG2 does NOT match.\n");
             fprintf(OUTPUT, "\nPrecomputed value for MSG2:\n");
-            PRINT_BYTE_ARRAY(OUTPUT, precomputed_msg2, sizeof(ra_samp_response_header_t) + precomputed_msg2->size);
+            PRINT_BYTE_ARRAY(OUTPUT, precomputed_msg2, sizeof(pkg_header_t) + precomputed_msg2->size);
             fprintf(OUTPUT, "\nA more descriptive representation of precomputed value for MSG2:\n");
             PRINT_ATTESTATION_SERVICE_RESPONSE(OUTPUT, precomputed_msg2);
         }else{
@@ -504,7 +496,7 @@ int SGX_CDECL main(int argc, char *argv[]){
     msg3
    */
   {
-    sgx_ra_msg2_t* p_msg2_body = (sgx_ra_msg2_t*)((uint8_t*)p_msg2_full + sizeof(ra_samp_response_header_t));
+    sgx_ra_msg2_t* p_msg2_body = (sgx_ra_msg2_t*)((uint8_t*)p_msg2_full + sizeof(pkg_header_t));
 
     uint32_t msg3_size = 0;
     if( VERIFICATION_INDEX_IS_VALID())
@@ -557,8 +549,8 @@ int SGX_CDECL main(int argc, char *argv[]){
 
     PRINT_BYTE_ARRAY(OUTPUT, p_msg3, msg3_size);
 
-    p_msg3_full = (ra_samp_request_header_t*)malloc(
-                   sizeof(ra_samp_request_header_t) + msg3_size);
+    p_msg3_full = (pkg_header_t*)malloc(
+                   sizeof(pkg_header_t) + msg3_size);
 
     if(NULL == p_msg3_full)
     {
@@ -568,7 +560,7 @@ int SGX_CDECL main(int argc, char *argv[]){
     p_msg3_full->type = TYPE_RA_MSG3;
     p_msg3_full->size = msg3_size;
 
-    memcpy((sgx_ra_msg3_t*)((uint8_t*)p_msg3_full + sizeof(ra_samp_request_header_t)), p_msg3, msg3_size);
+    memcpy((sgx_ra_msg3_t*)((uint8_t*)p_msg3_full + sizeof(pkg_header_t)), p_msg3, msg3_size);
 
     fprintf(OUTPUT, "\nMSG3 package generated\n");
 
@@ -593,7 +585,7 @@ int SGX_CDECL main(int argc, char *argv[]){
       goto CLEANUP;
     }
 
-    sample_ra_att_result_msg_t *p_att_result_msg_body = (sample_ra_att_result_msg_t*)((uint8_t*)p_att_result_msg_full + sizeof(ra_samp_response_header_t));
+    sample_ra_att_result_msg_t *p_att_result_msg_body = (sample_ra_att_result_msg_t*)((uint8_t*)p_att_result_msg_full + sizeof(pkg_header_t));
 
     if(TYPE_RA_ATT_RESULT != p_att_result_msg_full->type){
       ret = -1;
@@ -640,7 +632,7 @@ int SGX_CDECL main(int argc, char *argv[]){
     // Whether attestation passes or fails is a decision made by the ISV Server.
     // When the ISV server decides to trust the enclave, then it will return success.
     // When the ISV server decided to not trust the enclave, then it will return failure.
-    if(0 != p_att_result_msg_full->status[0] || 0 != p_att_result_msg_full->status[1]){
+    if(0 != p_att_result_msg_full->reserved[0] || 0 != p_att_result_msg_full->reserved[1]){
       fprintf(OUTPUT, "\nError, attestation result message MK based cmac failed in [%s].", __FUNCTION__);
       attestation_passed = false;
     }
@@ -808,17 +800,17 @@ CLEANUP:
   hcp->id = 1;
   hcp->sig = {0};
 
-  key_req = (kd_samp_package_header_t*)malloc(
-                 sizeof(kd_samp_package_header_t) + sizeof(hcp_samp_certificate_t));
+  key_req = (pkg_header_t*)malloc(
+                 sizeof(pkg_header_t) + sizeof(hcp_samp_certificate_t));
 
   if(NULL == key_req)
   {
     ret = -1;
   }
-  key_req->type = TYPE_KEY_REQUEST;
+  key_req->type = TYPE_KEY_REQ;
   key_req->size = sizeof(hcp_samp_certificate_t);
 
-  memcpy((hcp_samp_certificate_t*)((uint8_t*)key_req + sizeof(kd_samp_package_header_t)), hcp, sizeof(hcp_samp_certificate_t));
+  memcpy((hcp_samp_certificate_t*)((uint8_t*)key_req + sizeof(pkg_header_t)), hcp, sizeof(hcp_samp_certificate_t));
 
   fprintf(OUTPUT, "\nHealth Care Provider key request package generated\n");
 
@@ -829,7 +821,7 @@ CLEANUP:
     fprintf(OUTPUT, "\nError, sending key request failed [%s].", __FUNCTION__);
   }
 
-  p_enc_dev_keys = (sp_aes_gcm_data_t*)((uint8_t*)key_resp + sizeof(kd_samp_package_header_t));
+  p_enc_dev_keys = (sp_aes_gcm_data_t*)((uint8_t*)key_resp + sizeof(pkg_header_t));
 
   ret = ecall_put_keys(global_eid, &status, p_enc_dev_keys->payload, p_enc_dev_keys->payload_size, p_enc_dev_keys->payload_tag);
   if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
@@ -852,7 +844,7 @@ CLEANUP:
   }
 
   fprintf(OUTPUT, "\nDev0_1\n");
-  p_enc_dev_0_offset_0_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_0_data_resp + sizeof(du_samp_package_header_t));
+  p_enc_dev_0_offset_0_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_0_data_resp + sizeof(pkg_header_t));
 
   ret = dr_network_send_receive("http://demo_testing.storage.cloud/", 0, 1, &dev_0_offset_1_data_resp);
 
@@ -862,7 +854,7 @@ CLEANUP:
   }
 
   fprintf(OUTPUT, "\nDev0_2\n");
-  p_enc_dev_0_offset_1_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_1_data_resp + sizeof(du_samp_package_header_t));
+  p_enc_dev_0_offset_1_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_1_data_resp + sizeof(pkg_header_t));
 
   ret = dr_network_send_receive("http://demo_testing.storage.cloud/", 0, 2, &dev_0_offset_2_data_resp);
 
@@ -871,7 +863,7 @@ CLEANUP:
     fprintf(OUTPUT, "\nError, dev 0 offset 2 data retrieve failed [%s].", __FUNCTION__);
   }
 
-  p_enc_dev_0_offset_2_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_2_data_resp + sizeof(du_samp_package_header_t));
+  p_enc_dev_0_offset_2_data = (sp_aes_gcm_data_t*)((uint8_t*)dev_0_offset_2_data_resp + sizeof(pkg_header_t));
 
   printf("\n***Perform Statistics Function Over Dev0_0, Dev0_1***\n\n");
 

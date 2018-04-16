@@ -51,9 +51,9 @@ extern sp_samp_dev_key_t dev_3;
 //   return 0;
 // }
 
-int sp_upload_data(const char *cloud_storage_url, uint8_t dev_id, uint8_t offset, du_samp_package_header_t **response){
+int sp_upload_data(const char *cloud_storage_url, uint8_t dev_id, uint8_t offset, pkg_header_t **response){
 
-  du_samp_package_header_t *p_resp = NULL;
+  pkg_header_t *p_resp = NULL;
   sp_aes_gcm_data_t *p_encrypted_data = NULL;
   sp_samp_dev_data_t *p_dev_data = NULL;
 
@@ -123,12 +123,12 @@ int sp_upload_data(const char *cloud_storage_url, uint8_t dev_id, uint8_t offset
 
   p_encrypted_data->payload_size = dev_data_size;
 
-  p_resp = (du_samp_package_header_t *)malloc(sizeof(du_samp_package_header_t) + sizeof(sp_aes_gcm_data_t) + dev_data_size);
+  p_resp = (pkg_header_t *)malloc(sizeof(pkg_header_t) + sizeof(sp_aes_gcm_data_t) + dev_data_size);
   if(!p_resp){
     fprintf(stderr, "\nError, out of memory in [%s].", __FUNCTION__);
     return -1;
   }
-  memset(p_resp, 0, sizeof(du_samp_package_header_t) + sizeof(sp_aes_gcm_data_t) + dev_data_size);
+  memset(p_resp, 0, sizeof(pkg_header_t) + sizeof(sp_aes_gcm_data_t) + dev_data_size);
 
   if(0 == dev_id){
     p_resp->type = TYPE_DEVICE_0;

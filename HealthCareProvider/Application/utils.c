@@ -33,7 +33,7 @@ void PRINT_BYTE_ARRAY(FILE *file, void *mem, uint32_t len){
     fprintf(file, "\n}\n");
 }
 
-void PRINT_ATTESTATION_SERVICE_RESPONSE(FILE *file, ra_samp_response_header_t *response){
+void PRINT_ATTESTATION_SERVICE_RESPONSE(FILE *file, pkg_header_t *response){
     if(!response)
     {
         fprintf(file, "\t\n( null )\n");
@@ -41,8 +41,8 @@ void PRINT_ATTESTATION_SERVICE_RESPONSE(FILE *file, ra_samp_response_header_t *r
     }
 
     fprintf(file, "RESPONSE TYPE:   0x%x\n", response->type);
-    fprintf(file, "RESPONSE STATUS: 0x%x 0x%x\n", response->status[0],
-            response->status[1]);
+    fprintf(file, "RESPONSE STATUS: 0x%x 0x%x\n", response->reserved[0],
+            response->reserved[1]);
     fprintf(file, "RESPONSE BODY SIZE: %u\n", response->size);
 
     if(response->type == TYPE_RA_MSG2)
@@ -104,9 +104,9 @@ void PRINT_ATTESTATION_SERVICE_RESPONSE(FILE *file, ra_samp_response_header_t *r
  * @return int
 */
 
-int ra_network_send_receive(const char *server_url, const ra_samp_request_header_t *p_req, ra_samp_response_header_t **p_resp){
+int ra_network_send_receive(const char *server_url, const pkg_header_t *p_req, pkg_header_t **p_resp){
   int ret = 0;
-  ra_samp_response_header_t *p_resp_msg;
+  pkg_header_t *p_resp_msg;
 
   if((NULL == server_url) || (NULL == p_req) || (NULL == p_resp)){
     ret = -1;
@@ -116,7 +116,7 @@ int ra_network_send_receive(const char *server_url, const ra_samp_request_header
   switch (p_req->type) {
     case TYPE_RA_MSG0:
       ret = sp_ra_proc_msg0_req((const sample_ra_msg0_t*)((uint8_t*)p_req
-          + sizeof(ra_samp_request_header_t)),
+          + sizeof(pkg_header_t)),
           p_req->size);
       if (0 != ret)
       {
@@ -126,7 +126,7 @@ int ra_network_send_receive(const char *server_url, const ra_samp_request_header
       break;
     case TYPE_RA_MSG1:
       ret = sp_ra_proc_msg1_req((const sample_ra_msg1_t*)((uint8_t*)p_req
-          + sizeof(ra_samp_request_header_t)),
+          + sizeof(pkg_header_t)),
           p_req->size,
           &p_resp_msg);
       if(0 != ret)
@@ -141,7 +141,7 @@ int ra_network_send_receive(const char *server_url, const ra_samp_request_header
       break;
     case TYPE_RA_MSG3:
       ret = sp_ra_proc_msg3_req((const sample_ra_msg3_t*)((uint8_t*)p_req +
-          sizeof(ra_samp_request_header_t)),
+          sizeof(pkg_header_t)),
           p_req->size,
           &p_resp_msg);
       if(0 != ret)
@@ -163,9 +163,9 @@ int ra_network_send_receive(const char *server_url, const ra_samp_request_header
   return ret;
 }
 
-int kq_network_send_receive(const char *server_url, const kd_samp_package_header_t *p_req, kd_samp_package_header_t **p_resp){
+int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, pkg_header_t **p_resp){
   int ret = 0;
-  kd_samp_package_header_t *p_resp_msg;
+  pkg_header_t *p_resp_msg;
 
   if((NULL == server_url) || (NULL == p_req) || (NULL == p_resp)){
     ret = -1;
@@ -173,7 +173,7 @@ int kq_network_send_receive(const char *server_url, const kd_samp_package_header
   }
 
   ret = sp_km_proc_key_req((const hcp_samp_certificate_t*)((uint8_t*)p_req
-      + sizeof(kd_samp_package_header_t)), &p_resp_msg);
+      + sizeof(pkg_header_t)), &p_resp_msg);
 
   if(0 != ret)
   {
@@ -188,9 +188,9 @@ int kq_network_send_receive(const char *server_url, const kd_samp_package_header
   return ret;
 }
 
-int dr_network_send_receive(const char *server_url, const uint8_t dev_id, const uint8_t offset, du_samp_package_header_t **p_resp){
+int dr_network_send_receive(const char *server_url, const uint8_t dev_id, const uint8_t offset, pkg_header_t **p_resp){
   int ret = 0;
-  du_samp_package_header_t *p_resp_msg;
+  pkg_header_t *p_resp_msg;
 
   if(NULL == server_url){
     ret = -1;
@@ -212,10 +212,10 @@ int dr_network_send_receive(const char *server_url, const uint8_t dev_id, const 
   return ret;
 }
 
-int hb_network_send_receive(const char *server_url, hb_samp_package_header_t **p_resp){
+int hb_network_send_receive(const char *server_url, pkg_header_t **p_resp){
 
   int ret = 0;
-  hb_samp_package_header_t *p_resp_msg;
+  pkg_header_t *p_resp_msg;
 
   if(NULL == server_url){
     ret = -1;

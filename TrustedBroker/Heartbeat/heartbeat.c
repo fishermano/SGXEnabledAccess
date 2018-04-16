@@ -21,9 +21,9 @@ uint8_t counter(){
   return ct++;
 }
 
-int sp_heart_beat_loop(hb_samp_package_header_t **response){
+int sp_heart_beat_loop(pkg_header_t **response){
 
-  hb_samp_package_header_t *p_resp = NULL;
+  pkg_header_t *p_resp = NULL;
   sp_aes_gcm_data_t *p_encrypted_data = NULL;
   sp_samp_heartbeat_data_t *p_heartbeat_data = NULL;
 
@@ -64,12 +64,12 @@ int sp_heart_beat_loop(hb_samp_package_header_t **response){
 
   p_encrypted_data->payload_size = heartbeat_data_size;
 
-  p_resp = (hb_samp_package_header_t *)malloc(sizeof(hb_samp_package_header_t) + sizeof(sp_aes_gcm_data_t) + heartbeat_data_size);
+  p_resp = (pkg_header_t *)malloc(sizeof(pkg_header_t) + sizeof(sp_aes_gcm_data_t) + heartbeat_data_size);
   if(!p_resp){
     fprintf(stderr, "\nError, out of memory in [%s].", __FUNCTION__);
     return -1;
   }
-  memset(p_resp, 0, sizeof(hb_samp_package_header_t) + sizeof(sp_aes_gcm_data_t) + heartbeat_data_size);
+  memset(p_resp, 0, sizeof(pkg_header_t) + sizeof(sp_aes_gcm_data_t) + heartbeat_data_size);
 
   p_resp->size = sizeof(sp_aes_gcm_data_t) + heartbeat_data_size;
 
