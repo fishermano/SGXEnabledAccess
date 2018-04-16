@@ -71,12 +71,25 @@ Heartbeat_Link_Flags := -shared -LThirdPartyLibrary -lsample_libcrypto
 
 Heartbeat_C_Objects := $(Heartbeat_C_Files:.c=.o)
 
+############ App Settings ##############
+
+App_C_Files := tb_main.c
+App_Include_Paths := -IIncludes
+
+App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
+App_Cpp_Flags := $(App_C_Flags) -std=c++11
+App_Link_Flags := -L. -LThirdPartyLibrary -lremote_attestation -lkey_management -ldata_upload -lsample_libcrypto -lheartbeat
+
+App_C_Objects := $(App_C_Files:.c=.o)
+
+App_Name := tb_app
+
 
 .PHONY: all
 
 
 ######## Service Provider Objects ########
-all: libremote_attestation.so libkey_management.so libdata_upload.so libheartbeat.so
+all: $(App_Name)
 
 RemoteAttestation/%.o: RemoteAttestation/%.c
 	@$(CXX) $(Remote_Attestation_C_Flags) -c $< -o $@
@@ -95,11 +108,15 @@ DataSample/%.o: DataSample/%.c
 	@echo "CXX  <=  $<"
 
 PolicyManagement/%.o: PolicyManagement/%.c
-		@$(CXX) $(Policy_Management_C_Flags) -c $< -o $@
-		@echo "CXX  <=  $<"
+	@$(CXX) $(Policy_Management_C_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
 
 Heartbeat/%.o: Heartbeat/%.c
 	@$(CXX) $(Heartbeat_C_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
+tb_main.o: tb_main.c
+	@$(CXX) $(App_C_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
 libremote_attestation.so: $(Remote_Attestation_C_Objects)
@@ -111,14 +128,18 @@ libkey_management.so: $(Key_Management_C_Objects) $(Policy_Management_C_Objects)
 	@echo "LINK =>  $@"
 
 libdata_upload.so: $(Data_Upload_C_Objects) $(Data_Sample_C_Objects)
-		@$(CXX) $^ -o $@ $(Data_Upload_Link_Flags)
-		@echo "LINK =>  $@"
+	@$(CXX) $^ -o $@ $(Data_Upload_Link_Flags)
+	@echo "LINK =>  $@"
 
 libheartbeat.so: $(Heartbeat_C_Objects)
-		@$(CXX) $^ -o $@ $(Heartbeat_Link_Flags)
-		@echo "LINK =>  $@"
+	@$(CXX) $^ -o $@ $(Heartbeat_Link_Flags)
+	@echo "LINK =>  $@"
+
+$(App_Name): $(App_C_Objects) libremote_attestation.so libkey_management.so libdata_upload.so libheartbeat.so
+	@$(CXX) $^ -o $@ $(App_Link_Flags)
+	@echo "LINK => $@"
 
 .PHONY: clean
 
 clean:
-	@rm -f libkey_management.so libremote_attestation.so libdata_upload.so libheartbeat.so $(Key_Management_C_Objects) $(Remote_Attestation_C_Objects) $(Data_Upload_C_Objects) $(Heartbeat_C_Objects)
+	@rm -f $(App_Name) libkey_management.so libremote_attestation.so libdata_upload.so libheartbeat.so $(Key_Management_C_Objects) $(Remote_Attestation_C_Objects) $(Data_Upload_C_Objects) $(Heartbeat_C_Objects) $(App_C_Objects)

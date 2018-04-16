@@ -40,6 +40,7 @@ extern "C" {
    uint8_t reserved[3];
    uint8_t body[];
  }pkg_header_t;
+#pragma pack()
 
 #ifdef __cplusplus
  }
