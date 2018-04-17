@@ -12,6 +12,9 @@
 extern "C" {
 #endif
 
+#define MAX_PKG_BODY 1024
+#define PKG_SIZE 1032
+
 /*
  * Enum for all possible package types.
  */
@@ -45,9 +48,12 @@ extern "C" {
    uint8_t type;
    uint32_t size;
    uint8_t reserved[3];
-   uint8_t body[1024];
+   uint8_t body[MAX_PKG_BODY];
  }pkg_t;
-#pragma pack()
+ #pragma pack()
+
+void pkg_serial(const pkg_header_t *pkg_header, char ** pkg);
+void pkg_deserial(const char *pkg, pkg_header_t ** pkg_header);
 
 #ifdef __cplusplus
  }

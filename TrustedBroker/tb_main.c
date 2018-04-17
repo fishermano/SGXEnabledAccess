@@ -62,21 +62,15 @@ int main(int argc, char** argv){
 
     printf("+++++++trusted broker receiving request from hcp+++++++\n");
 
-    int req_pkg_size = sizeof(pkg_t);
-    char *req_data_buf = (char *)malloc(req_pkg_size);
-    int n = recv(connect_fd, req_data_buf, req_pkg_size, 0);
+    char *req_data_buf = (char *)malloc(PKG_SIZE);
+    int n = recv(connect_fd, req_data_buf, PKG_SIZE, 0);
     if( n < 0 ){
       printf("trusted broker receive data error: %s(errno: %d)", strerror(errno), errno);
       exit(0);
     }
 
-    pkg_t *pkg_tmp = (pkg_t *)malloc(sizeof(pkg_t));
-    memcpy(pkg_tmp, req_data_buf, req_pkg_size);
-
-    pkg_header_t *pkg = (pkg_header_t *)malloc(sizeof(pkg_header_t) + pkg_tmp->size);
-    pkg->type = pkg_tmp->type;
-    pkg->size = pkg_tmp->size;
-    memcpy(pkg->body, pkg_tmp->body, pkg_tmp->size);
+    pkg_header_t *pkg;
+    pkg_deserial(req_data_buf, &pkg);
 
     int ret = 0;
     switch( pkg->type ){
@@ -102,16 +96,10 @@ int main(int argc, char** argv){
 
           printf("+++++++trusted broker sending response to hcp+++++++\n");
 
-          pkg_t *test_pkg = (pkg_t *)malloc(sizeof(pkg_t));
-          test_pkg->type = p_resp_msg->type;
-          test_pkg->size = p_resp_msg->size;
-          memcpy(test_pkg->body, p_resp_msg->body, p_resp_msg->size);
+          char *res_data_buf;
+          pkg_serial(p_resp_msg, &res_data_buf);
 
-          int res_pkg_size = sizeof(pkg_t);
-          char *res_data_buf = (char *)malloc(res_pkg_size);
-          memcpy(res_data_buf, test_pkg, res_pkg_size);
-
-          n = send(connect_fd, res_data_buf, res_pkg_size, 0);
+          n = send(connect_fd, res_data_buf, PKG_SIZE, 0);
           if( n <= 0){
             printf("trusted broker send response data error: %s(errno: %d)", strerror(errno), errno);
             break;
@@ -126,7 +114,6 @@ int main(int argc, char** argv){
     }
 
     close(connect_fd);
-    //close(connect_fd);
   }
 
   close(socket_fd);

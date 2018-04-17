@@ -178,10 +178,6 @@ int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
 
   int socket_fd;
   struct sockaddr_in servaddr;
-  pkg_t *test_pkg = (pkg_t *)malloc(sizeof(pkg_t));
-  test_pkg->type = p_req->type;
-  test_pkg->size = p_req->size;
-  memcpy(test_pkg->body, p_req->body, p_req->size);
 
   if( (socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ){
     printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
@@ -202,12 +198,11 @@ int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
 
   printf("+++++++hcp sending key request+++++++\n");
 
-  int req_pkg_size = sizeof(pkg_t);
-  char *req_data_buf = (char *)malloc(req_pkg_size);
-  memcpy(req_data_buf, test_pkg, req_pkg_size);
+  char *req_data_buf;
+  pkg_serial(p_req, &req_data_buf);
 
   int n = 0;
-  n = send(socket_fd, req_data_buf, req_pkg_size, 0);
+  n = send(socket_fd, req_data_buf, PKG_SIZE, 0);
   if( n <= 0){
     printf("hcp send request data error: %s(errno: %d)", strerror(errno), errno);
     ret = -1;
@@ -216,22 +211,16 @@ int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
 
   printf("+++++++hcp receiving response from hcp+++++++\n");
 
-  int res_pkg_size = sizeof(pkg_t);
-  char *res_data_buf = (char *)malloc(res_pkg_size);
-  n = recv(socket_fd, res_data_buf, res_pkg_size, 0);
+  char *res_data_buf = (char *)malloc(PKG_SIZE);
+  n = recv(socket_fd, res_data_buf, PKG_SIZE, 0);
   if( n < 0 ){
     printf("hcp receive data error: %s(errno: %d)", strerror(errno), errno);
     ret = -1;
     return ret;
   }
 
-  pkg_t *pkg = (pkg_t *)malloc(sizeof(pkg_t));
-  memcpy(pkg, res_data_buf, res_pkg_size);
-
-  pkg_header_t *res_tmp = (pkg_header_t *)malloc(sizeof(pkg_header_t) + pkg->size);
-  res_tmp->type = pkg->type;
-  res_tmp->size = pkg->size;
-  memcpy(res_tmp->body, pkg->body, pkg->size);
+  pkg_header_t *res_tmp;
+  pkg_deserial(res_data_buf, &res_tmp);
 
   *p_resp = res_tmp;
 
