@@ -84,19 +84,20 @@ int main(int argc, char** argv){
 
         break;
       case TYPE_KEY_REQ:
+        char *res_data_buf;
         pkg_header_t *p_resp_msg;
         ret = sp_km_proc_key_req((const hcp_samp_certificate_t*)((uint8_t*)pkg
             + sizeof(pkg_header_t)), &p_resp_msg);
         if(0 != ret)
         {
             printf("call sp_km_proc_key_req fail error: %s(errno: %d)", strerror(errno), errno);
+            break;
         }
 
         if( !fork() ){
 
           printf("+++++++trusted broker sending response to hcp+++++++\n");
 
-          char *res_data_buf;
           pkg_serial(p_resp_msg, &res_data_buf);
 
           n = send(connect_fd, res_data_buf, PKG_SIZE, 0);
@@ -105,14 +106,17 @@ int main(int argc, char** argv){
             break;
           }
 
-        }
+          free(res_data_buf);
+          free(p_resp_msg);
 
+        }
         break;
       default:
         printf("unknown package type error: %s(errno: %d)", strerror(errno), errno);
         break;
     }
 
+    free(req_data_buf);
     close(connect_fd);
   }
 

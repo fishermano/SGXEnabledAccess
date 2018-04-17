@@ -224,6 +224,8 @@ int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
 
   *p_resp = res_tmp;
 
+  free(req_data_buf);
+  free(res_data_buf);
   return ret;
 }
 
