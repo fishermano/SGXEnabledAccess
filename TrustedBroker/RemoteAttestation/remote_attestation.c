@@ -201,7 +201,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
         }
 
         // Need to save the client's public ECCDH key to local storage
-
         if (memcpy_s(&g_sp_db->g_a, sizeof(g_sp_db->g_a), &p_msg1->g_a,
                      sizeof(p_msg1->g_a)))
         {

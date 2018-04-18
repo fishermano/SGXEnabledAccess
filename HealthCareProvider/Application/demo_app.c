@@ -2,7 +2,6 @@
   Needed for defining integer range, eg. INT_MAX
 */
 #include <limits.h>
-
 #include <pthread.h>
 
 /*
@@ -40,6 +39,8 @@
   Needed to query extended epid group id.
 */
 #include "sgx_uae_service.h"
+
+#define HCP_SERVER "127.0.0.1"
 
 
 #ifndef SAFE_FREE
@@ -272,7 +273,7 @@ int SGX_CDECL main(int argc, char *argv[]){
 
     fprintf(OUTPUT, "\nSending msg0 to remote attestation trusted broker.\n");
 
-    ret = ra_network_send_receive("127.0.0.1", p_msg0_full, &p_msg0_resp_full);
+    ret = ra_network_send_receive(HCP_SERVER, p_msg0_full, &p_msg0_resp_full);
     if (ret != 0)
     {
         fprintf(OUTPUT, "\nError, ra_network_send_receive for msg0 failed "
@@ -355,7 +356,7 @@ int SGX_CDECL main(int argc, char *argv[]){
     // The demo_app decides whether to use linkable or unlinkable signatures.
     fprintf(OUTPUT, "\nSending msg1 to remote attestation service provider. Expecting msg2 back.\n");
 
-    ret = ra_network_send_receive("127.0.0.1", p_msg1_full, &p_msg2_full);
+    ret = ra_network_send_receive(HCP_SERVER, p_msg1_full, &p_msg2_full);
 
     if(ret != 0 || !p_msg2_full){
       fprintf(OUTPUT, "\nError, ra_network_send_receive for msg1 failed [%s].", __FUNCTION__);
@@ -440,7 +441,7 @@ int SGX_CDECL main(int argc, char *argv[]){
     result attestation msg
   */
   {
-    ret = ra_network_send_receive("127.0.0.1", p_msg3_full, &p_att_result_msg_full);
+    ret = ra_network_send_receive(HCP_SERVER, p_msg3_full, &p_att_result_msg_full);
 
     if(ret !=0 || !p_att_result_msg_full){
       ret = -1;
@@ -592,43 +593,43 @@ CLEANUP:
 //
 //   fprintf(OUTPUT, "\nSecrets sealed recovered from sealed_activity_log successfully\n");
 //
-//   fprintf(OUTPUT, "\n\n***Starting Key Request Functionality***\n");
-//
-//   hcp = (hcp_samp_certificate_t *)malloc(sizeof(hcp_samp_certificate_t));
-//   memset(hcp, 0, sizeof(hcp_samp_certificate_t));
-//   hcp->id = 1;
-//   hcp->sig = {0};
-//
-//   key_req = (pkg_header_t*)malloc(
-//                  sizeof(pkg_header_t) + sizeof(hcp_samp_certificate_t));
-//
-//   if(NULL == key_req)
-//   {
-//     ret = -1;
-//   }
-//   key_req->type = TYPE_KEY_REQ;
-//   key_req->size = sizeof(hcp_samp_certificate_t);
-//
-//   memcpy((hcp_samp_certificate_t*)((uint8_t*)key_req + sizeof(pkg_header_t)), hcp, sizeof(hcp_samp_certificate_t));
-//
-//   fprintf(OUTPUT, "\nHealth Care Provider key request package generated\n");
-//
-//   ret = kq_network_send_receive("127.0.0.1", key_req, &key_resp);
-//
-//   if(ret !=0 || !key_resp){
-//     ret = -1;
-//     fprintf(OUTPUT, "\nError, sending key request failed [%s].", __FUNCTION__);
-//   }
-//
-//   p_enc_dev_keys = (sp_aes_gcm_data_t*)((uint8_t*)key_resp + sizeof(pkg_header_t));
-//
-//   ret = ecall_put_keys(global_eid, &status, p_enc_dev_keys->payload, p_enc_dev_keys->payload_size, p_enc_dev_keys->payload_tag);
-//   if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
-//     fprintf(OUTPUT, "\nError, encrypted key set secret using secret_share_key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x", __FUNCTION__, ret, status);
-//     goto FINAL;
-//   }
-//
-//   fprintf(OUTPUT, "\nDevice keys loaded in the enclave.\n");
+  fprintf(OUTPUT, "\n\n***Starting Key Request Functionality***\n");
+
+  hcp = (hcp_samp_certificate_t *)malloc(sizeof(hcp_samp_certificate_t));
+  memset(hcp, 0, sizeof(hcp_samp_certificate_t));
+  hcp->id = 1;
+  hcp->sig = {0};
+
+  key_req = (pkg_header_t*)malloc(
+                 sizeof(pkg_header_t) + sizeof(hcp_samp_certificate_t));
+
+  if(NULL == key_req)
+  {
+    ret = -1;
+  }
+  key_req->type = TYPE_KEY_REQ;
+  key_req->size = sizeof(hcp_samp_certificate_t);
+
+  memcpy((hcp_samp_certificate_t*)((uint8_t*)key_req + sizeof(pkg_header_t)), hcp, sizeof(hcp_samp_certificate_t));
+
+  fprintf(OUTPUT, "\nHealth Care Provider key request package generated\n");
+
+  ret = kq_network_send_receive(HCP_SERVER, key_req, &key_resp);
+
+  if(ret !=0 || !key_resp){
+    ret = -1;
+    fprintf(OUTPUT, "\nError, sending key request failed [%s].", __FUNCTION__);
+  }
+
+  p_enc_dev_keys = (sp_aes_gcm_data_t*)((uint8_t*)key_resp + sizeof(pkg_header_t));
+
+  ret = ecall_put_keys(global_eid, &status, p_enc_dev_keys->payload, p_enc_dev_keys->payload_size, p_enc_dev_keys->payload_tag);
+  if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
+    fprintf(OUTPUT, "\nError, encrypted key set secret using secret_share_key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x", __FUNCTION__, ret, status);
+    goto FINAL;
+  }
+
+  fprintf(OUTPUT, "\nDevice keys loaded in the enclave.\n");
 
   // fprintf(OUTPUT, "\n\n***Starting Data Request Functionality***\n");
   //

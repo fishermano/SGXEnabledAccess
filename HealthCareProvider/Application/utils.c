@@ -118,14 +118,13 @@ int ra_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
   int ret = 0;
 
   int socket_fd;
-  struct sockaddr_in servaddr;
-
   if( (socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ){
     printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
     ret = -1;
     return ret;
   }
 
+  struct sockaddr_in servaddr;
   memset(&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = inet_addr(server_url);
@@ -215,8 +214,8 @@ int ra_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
       break;
   }
 
-  // free(req_data_buf);
-  // free(res_data_buf);
+  free(req_data_buf);
+  free(res_data_buf);
   close(socket_fd);
   return ret;
 }
@@ -275,9 +274,9 @@ int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
 
   *p_resp = res_tmp;
 
-  // free(req_data_buf);
-  // free(res_data_buf);
-  // close(socket_fd);
+  free(req_data_buf);
+  free(res_data_buf);
+  close(socket_fd);
   return ret;
 }
 

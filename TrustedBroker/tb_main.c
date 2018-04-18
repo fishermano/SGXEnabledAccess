@@ -112,6 +112,7 @@ int main(int argc, char** argv){
           printf("call sp_ra_proc_msg1_req error: %s(errno: %d)", strerror(errno), errno);
           break;
         }
+
         if( !fork() ){
 
           printf("-------trusted broker sending back TYPE_RA_MSG2: -------\n");
