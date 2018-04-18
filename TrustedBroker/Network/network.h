@@ -12,8 +12,8 @@
 extern "C" {
 #endif
 
-#define MAX_PKG_BODY 1024
-#define PKG_SIZE 1032
+#define MAX_PKG_BODY 2046
+#define PKG_SIZE 2054
 
 /*
  * Enum for all possible package types.

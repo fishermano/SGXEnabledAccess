@@ -222,30 +222,6 @@ int SGX_CDECL main(int argc, char *argv[]){
   int hb_loop = 20;
   int hb_freq = 2;
 
-  // double sum_time = 0.0;
-  // double average_time = 0.0;
-  // uint32_t result_temp = 0;
-  // double mean = 0.0;
-  // double variance = 0.0;
-  //
-  // uint8_t evaluation_data_1[8] = {
-  //   0xf5, 0x5b, 0x56, 0xf0, 0xac, 0x7f, 0x78, 0x39
-  // };
-  //
-  // uint8_t evaluation_data_2[8] = {
-  //   0x39, 0x85, 0x37, 0xfe, 0xad, 0x1f, 0xc7, 0x59
-  // };
-  //
-  // #define FILE_NUM 100000
-  // enc_file eval_files[FILE_NUM] = {0};
-  // uint8_t ssk[16] = {
-  //   0x72, 0xee, 0x30, 0xb0,
-  //   0x1d, 0xd9, 0x11, 0x38,
-  //   0x24, 0x11, 0x14, 0x3a,
-  //   0xe2, 0xaa, 0x60, 0x38
-  // };
-  // uint8_t aes_gcm_iv[12] = {0};
-
   /*
     define retry parameters
   */
@@ -258,32 +234,9 @@ int SGX_CDECL main(int argc, char *argv[]){
   sgx_ra_context_t context = INT_MAX;
 
   /*
-    define verification parameters
-  */
-  int32_t verify_index = -1;
-  int32_t verification_samples = sizeof(msg1_samples)/sizeof(msg1_samples[0]);
-  #define VERIFICATION_INDEX_IS_VALID() (verify_index > 0 && verify_index <= verification_samples)
-  #define GET_VERIFICATION_ARRAY_INDEX() (verify_index-1)
-
-  /*
     define the output source file
   */
   FILE *OUTPUT = stdout;
-
-  if(argc > 1){
-    verify_index = atoi(argv[1]);
-    if(VERIFICATION_INDEX_IS_VALID()){
-      fprintf(OUTPUT, "\nVerifying precomputed attestation messages using precomputed values# %d\n", verify_index);
-    }else{
-      fprintf(OUTPUT, "\nValid invocations are:\n");
-      fprintf(OUTPUT, "\n\t./demo_app\n");
-      fprintf(OUTPUT, "\n\t./demo_app <verification index>\n");
-      fprintf(OUTPUT, "\nValid indices are [1 - %d]\n",
-              verification_samples);
-      fprintf(OUTPUT, "\nUsing a verification index uses precomputed messages to assist debugging the remote attestation trusted broker.\n");
-      return -1;
-    }
-  }
 
   /*
     preparation for remote attestation by configuring extended epid group id - msg0.
@@ -319,7 +272,7 @@ int SGX_CDECL main(int argc, char *argv[]){
 
     fprintf(OUTPUT, "\nSending msg0 to remote attestation trusted broker.\n");
 
-    ret = ra_network_send_receive("http://demo_testing.cnsr.vt.edu/", p_msg0_full, &p_msg0_resp_full);
+    ret = ra_network_send_receive("127.0.0.1", p_msg0_full, &p_msg0_resp_full);
     if (ret != 0)
     {
         fprintf(OUTPUT, "\nError, ra_network_send_receive for msg0 failed "
@@ -396,71 +349,25 @@ int SGX_CDECL main(int argc, char *argv[]){
       PRINT_BYTE_ARRAY(OUTPUT, p_msg1_full->body, p_msg1_full->size);
     }
 
-    if(VERIFICATION_INDEX_IS_VALID()){
-
-      // memcpy_s(p_msg1_full->body, p_msg1_full->size, msg1_samples[GET_VERIFICATION_ARRAY_INDEX()], p_msg1_full->size);
-
-      memcpy(p_msg1_full->body, msg1_samples[GET_VERIFICATION_ARRAY_INDEX()], p_msg1_full->size);
-
-      fprintf(OUTPUT, "\nInstead of using the recently generated MSG1, "
-                      "we will use the following precomputed MSG1 -\n");
-
-      PRINT_BYTE_ARRAY(OUTPUT, p_msg1_full->body, p_msg1_full->size);
-
-    }
-
 
     // The demo_app sends msg1 to the trusted broker to get msg2,
     // msg2 needs to be freed when no longer needed.
     // The demo_app decides whether to use linkable or unlinkable signatures.
     fprintf(OUTPUT, "\nSending msg1 to remote attestation service provider. Expecting msg2 back.\n");
 
-    ret = ra_network_send_receive("http://demo_testing.cnsr.vt.edu/", p_msg1_full, &p_msg2_full);
+    ret = ra_network_send_receive("127.0.0.1", p_msg1_full, &p_msg2_full);
 
     if(ret != 0 || !p_msg2_full){
       fprintf(OUTPUT, "\nError, ra_network_send_receive for msg1 failed [%s].", __FUNCTION__);
 
-      if(VERIFICATION_INDEX_IS_VALID()){
-        fprintf(OUTPUT, "\nBecause we are in verification mode we will ignore this error.\n");
-        fprintf(OUTPUT, "\nInstead, we will pretend we received the following MSG2 - \n");
-
-        SAFE_FREE(p_msg2_full);
-        pkg_header_t* precomputed_msg2 =
-            (pkg_header_t*)msg2_samples[
-                GET_VERIFICATION_ARRAY_INDEX()];
-        const size_t msg2_full_size = sizeof(pkg_header_t)
-                                      +  precomputed_msg2->size;
-        p_msg2_full =
-            (pkg_header_t*)malloc(msg2_full_size);
-        if(NULL == p_msg2_full)
-        {
-            ret = -1;
-            goto CLEANUP;
-        }
-        // memcpy_s(p_msg2_full, msg2_full_size, precomputed_msg2,
-        //          msg2_full_size);
-        memcpy(p_msg2_full, precomputed_msg2,
-                 msg2_full_size);
-
-        PRINT_BYTE_ARRAY(OUTPUT, p_msg2_full,
-                         sizeof(pkg_header_t)
-                         + p_msg2_full->size);
-      }else{
-        goto CLEANUP;
-      }
     }else{
       // Successfully sent msg1 and received a msg2 back.
       // Time now to check msg2.
       if(TYPE_RA_MSG2 != p_msg2_full->type){
 
         fprintf(OUTPUT, "\nError, didn't get MSG2 in response to MSG1. [%s].", __FUNCTION__);
+        goto CLEANUP;
 
-        if(VERIFICATION_INDEX_IS_VALID()){
-          fprintf(OUTPUT, "\nBecause we are in verification mode we will ignore this error.");
-        }
-        else{
-            goto CLEANUP;
-        }
       }
 
       fprintf(OUTPUT, "\nSent MSG1 to remote attestation trusted broker. Received the following MSG2:\n");
@@ -469,26 +376,6 @@ int SGX_CDECL main(int argc, char *argv[]){
       fprintf(OUTPUT, "\nA more descriptive representation of MSG2:\n");
       PRINT_ATTESTATION_SERVICE_RESPONSE(OUTPUT, p_msg2_full);
 
-      if( VERIFICATION_INDEX_IS_VALID() )
-      {
-        // The response should match the precomputed MSG2:
-        pkg_header_t* precomputed_msg2 =
-            (pkg_header_t *)
-            msg2_samples[GET_VERIFICATION_ARRAY_INDEX()];
-        if(MSG2_BODY_SIZE !=
-            sizeof(pkg_header_t) + p_msg2_full->size ||
-            memcmp( precomputed_msg2, p_msg2_full,
-                sizeof(pkg_header_t) + p_msg2_full->size)){
-
-            fprintf(OUTPUT, "\nVerification ERROR. Our precomputed value for MSG2 does NOT match.\n");
-            fprintf(OUTPUT, "\nPrecomputed value for MSG2:\n");
-            PRINT_BYTE_ARRAY(OUTPUT, precomputed_msg2, sizeof(pkg_header_t) + precomputed_msg2->size);
-            fprintf(OUTPUT, "\nA more descriptive representation of precomputed value for MSG2:\n");
-            PRINT_ATTESTATION_SERVICE_RESPONSE(OUTPUT, precomputed_msg2);
-        }else{
-          fprintf(OUTPUT, "\nVerification COMPLETE. Remote attestation trusted broker generated a matching MSG2.\n");
-        }
-      }
     }
   }
 
@@ -499,52 +386,35 @@ int SGX_CDECL main(int argc, char *argv[]){
     sgx_ra_msg2_t* p_msg2_body = (sgx_ra_msg2_t*)((uint8_t*)p_msg2_full + sizeof(pkg_header_t));
 
     uint32_t msg3_size = 0;
-    if( VERIFICATION_INDEX_IS_VALID())
+
+    busy_retry_time = 2;
+    // The demo_app now calls uKE sgx_ra_proc_msg2,
+    // The demo_app is responsible for freeing the returned p_msg3!!
+    do
     {
-      // We cannot generate a valid MSG3 using the precomputed messages
-      // we have been using. We will use the precomputed msg3 instead.
-      msg3_size = MSG3_BODY_SIZE;
-      p_msg3 = (sgx_ra_msg3_t*)malloc(msg3_size);
-      if(NULL == p_msg3)
-      {
-          ret = -1;
-          goto CLEANUP;
-      }
-      // memcpy_s(p_msg3, msg3_size,
-      //          msg3_samples[GET_VERIFICATION_ARRAY_INDEX()], msg3_size);
-      memcpy(p_msg3, msg3_samples[GET_VERIFICATION_ARRAY_INDEX()], msg3_size);
-      fprintf(OUTPUT, "\nBecause MSG1 was a precomputed value, the MSG3 "
-                      "we use will also be. PRECOMPUTED MSG3 - \n");
+      ret = sgx_ra_proc_msg2(context,
+                         global_eid,
+                         sgx_ra_proc_msg2_trusted,
+                         sgx_ra_get_msg3_trusted,
+                         p_msg2_body,
+                         p_msg2_full->size,
+                         &p_msg3,
+                         &msg3_size);
+    }while(SGX_ERROR_BUSY == ret && busy_retry_time--);
+
+    if(!p_msg3){
+      fprintf(OUTPUT, "\nError, call sgx_ra_proc_msg2 fail. p_msg3 = 0x%p [%s].", p_msg3, __FUNCTION__);
+      ret = -1;
+      goto CLEANUP;
+    }
+
+    if(SGX_SUCCESS != (sgx_status_t)ret){
+      fprintf(OUTPUT, "\nError, call sgx_ra_proc_msg2 fail. ret = 0x%08x [%s].", ret, __FUNCTION__);
+      ret = -1;
+      goto CLEANUP;
     }else{
-      busy_retry_time = 2;
-      // The demo_app now calls uKE sgx_ra_proc_msg2,
-      // The demo_app is responsible for freeing the returned p_msg3!!
-      do
-      {
-        ret = sgx_ra_proc_msg2(context,
-                           global_eid,
-                           sgx_ra_proc_msg2_trusted,
-                           sgx_ra_get_msg3_trusted,
-                           p_msg2_body,
-                           p_msg2_full->size,
-                           &p_msg3,
-                           &msg3_size);
-      }while(SGX_ERROR_BUSY == ret && busy_retry_time--);
-
-      if(!p_msg3){
-        fprintf(OUTPUT, "\nError, call sgx_ra_proc_msg2 fail. p_msg3 = 0x%p [%s].", p_msg3, __FUNCTION__);
-        ret = -1;
-        goto CLEANUP;
-      }
-
-      if(SGX_SUCCESS != (sgx_status_t)ret){
-        fprintf(OUTPUT, "\nError, call sgx_ra_proc_msg2 fail. ret = 0x%08x [%s].", ret, __FUNCTION__);
-        ret = -1;
-        goto CLEANUP;
-      }else{
-        fprintf(OUTPUT, "\nCall sgx_ra_proc_msg2 success.\n");
-        fprintf(OUTPUT, "\nMSG3 - \n");
-      }
+      fprintf(OUTPUT, "\nCall sgx_ra_proc_msg2 success.\n");
+      fprintf(OUTPUT, "\nMSG3 - \n");
     }
 
     PRINT_BYTE_ARRAY(OUTPUT, p_msg3, msg3_size);
@@ -564,20 +434,13 @@ int SGX_CDECL main(int argc, char *argv[]){
 
     fprintf(OUTPUT, "\nMSG3 package generated\n");
 
-    // if(memcpy_s(p_msg3_full->body, msg3_size, p_msg3, msg3_size))
-    // {
-    //   fprintf(OUTPUT,"\nError: INTERNAL ERROR - memcpy failed in [%s].",
-    //           __FUNCTION__);
-    //   ret = -1;
-    //   goto CLEANUP;
-    // }
   }
 
   /*
     result attestation msg
   */
   {
-    ret = ra_network_send_receive("http://demo_testing.cnsr.vt.edu/", p_msg3_full, &p_att_result_msg_full);
+    ret = ra_network_send_receive("127.0.0.1", p_msg3_full, &p_att_result_msg_full);
 
     if(ret !=0 || !p_att_result_msg_full){
       ret = -1;
@@ -585,31 +448,19 @@ int SGX_CDECL main(int argc, char *argv[]){
       goto CLEANUP;
     }
 
-    sample_ra_att_result_msg_t *p_att_result_msg_body = (sample_ra_att_result_msg_t*)((uint8_t*)p_att_result_msg_full + sizeof(pkg_header_t));
-
     if(TYPE_RA_ATT_RESULT != p_att_result_msg_full->type){
       ret = -1;
       fprintf(OUTPUT, "\nError. Sent MSG3 successfully, but the message received was NOT of type att_msg_result. Type = %d. [%s].", p_att_result_msg_full->type, __FUNCTION__);
       goto CLEANUP;
     }else{
       fprintf(OUTPUT, "\nSent MSG3 successfully. Received an attestation result message back\n.");
-      if( VERIFICATION_INDEX_IS_VALID() ){
-        if(ATTESTATION_MSG_BODY_SIZE != p_att_result_msg_full->size || memcmp(p_att_result_msg_full->body, attestation_msg_samples[GET_VERIFICATION_ARRAY_INDEX()], p_att_result_msg_full->size) ){
-          fprintf(OUTPUT, "\nSent MSG3 successfully. Received an attestation result message back that did NOT match the expected value.\n");
-          fprintf(OUTPUT, "\nEXPECTED ATTESTATION RESULT -");
-          PRINT_BYTE_ARRAY(OUTPUT, attestation_msg_samples[GET_VERIFICATION_ARRAY_INDEX()], ATTESTATION_MSG_BODY_SIZE);
-        }
-      }
     }
 
     fprintf(OUTPUT, "\nATTESTATION RESULT RECEIVED - ");
     PRINT_BYTE_ARRAY(OUTPUT, p_att_result_msg_full->body, p_att_result_msg_full->size);
 
-    if( VERIFICATION_INDEX_IS_VALID() )
-    {
-      fprintf(OUTPUT, "\nBecause we used precomputed values for the messages, the attestation result message will not pass further verification tests, so we will skip them.\n");
-      goto CLEANUP;
-    }
+    fprintf(OUTPUT, "\nA more descriptive ATTESTATION RESULT: \n");
+    PRINT_ATTESTATION_SERVICE_RESPONSE(OUTPUT, p_att_result_msg_full);
 
   /*
     verify the attestation result
@@ -619,6 +470,8 @@ int SGX_CDECL main(int argc, char *argv[]){
     // The format of the attestation result message is demo_app specific.
     // This is a simple form for demonstration. In a real product,
     // the demo_app may want to communicate more information.
+    sample_ra_att_result_msg_t *p_att_result_msg_body = (sample_ra_att_result_msg_t*)((uint8_t*)p_att_result_msg_full + sizeof(pkg_header_t));
+
     ret = ecall_verify_result_mac(global_eid, &status, context, (uint8_t*)&p_att_result_msg_body->platform_info_blob, sizeof(ias_platform_info_blob_t), (uint8_t*)&p_att_result_msg_body->mac, sizeof(sgx_mac_t));
 
     if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)) {
@@ -655,6 +508,7 @@ int SGX_CDECL main(int argc, char *argv[]){
     // passed)
 
     if(attestation_passed){
+
       ret = ecall_put_secrets(global_eid, &status,
                             context, p_att_result_msg_body->secret.payload, p_att_result_msg_body->secret.payload_size, p_att_result_msg_body->secret.payload_tag);
       if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
@@ -684,97 +538,97 @@ CLEANUP:
     fprintf(OUTPUT, "\nCall ecall_close_ra() success.");
   }
 
-  fprintf(OUTPUT, "\n\n***Starting Sealing Secrets Functionality***\n\n");
-
-  /*
-    define seal log parameters
-  */
-  /* equal to sgx_calc_sealed_data_size(0,sizeof(replay_protected_pay_load))) in ss.c
-  */
-#define SEALED_REPLAY_PROTECTED_PAY_LOAD_SIZE 624
-  uint32_t sealed_activity_log_length = SEALED_REPLAY_PROTECTED_PAY_LOAD_SIZE;
-  uint8_t  sealed_activity_log[sealed_activity_log_length];
-
-  sgx_ps_cap_t ps_cap;
-  memset(&ps_cap, 0, sizeof(sgx_ps_cap_t));
-  ret = sgx_get_ps_cap(&ps_cap);
-  if(SGX_SUCCESS != ret){
-    fprintf(OUTPUT, "\nCannot get platform service capability failed in [%s], error code = 0x%0x\n", __FUNCTION__, ret);
-    ret = -1;
-    goto FINAL;
-  }
-  if(!SGX_IS_MONOTONIC_COUNTER_AVAILABLE(ps_cap)){
-    fprintf(OUTPUT, "\nMonotonic counter is not supported failed in [%s], error code = 0x%0x\n", __FUNCTION__, SGX_ERROR_SERVICE_UNAVAILABLE);
-    ret = -1;
-    goto FINAL;
-  }
-
-
-  ret = ecall_create_sealed_policy(global_eid, &status, (uint8_t *)sealed_activity_log, sealed_activity_log_length);
-  if(SGX_SUCCESS != ret){
-    fprintf(OUTPUT, "\nCall ecall_create_sealed_policy failed in [%s], error code = 0x%0x\n", __FUNCTION__, ret);
-    ret = -1;
-    goto FINAL;
-  }
-  if(SGX_SUCCESS != status){
-    fprintf(OUTPUT, "\nCannot create_sealed_policy failed in [%s], error code = 0x%0x\n", __FUNCTION__, status);
-    ret = -1;
-    goto FINAL;
-  }
-
-  fprintf(OUTPUT, "\nSecrets sealed in sealed_activity_log successfully\n");
-
-  ret = ecall_perform_sealed_policy(global_eid, &status, (uint8_t *)sealed_activity_log, sealed_activity_log_length);
-  if(SGX_SUCCESS != ret){
-    fprintf(OUTPUT, "\nCall ecall_perform_sealed_policy failed in [%s], error code = 0x%0x\n", __FUNCTION__, ret);
-    ret = -1;
-    goto FINAL;
-  }
-  if(SGX_SUCCESS != status){
-    fprintf(OUTPUT, "\nCannot perform_sealed_policy failed in [%s], error code = 0x%0x\n", __FUNCTION__, status);
-    ret = -1;
-    goto FINAL;
-  }
-
-  fprintf(OUTPUT, "\nSecrets sealed recovered from sealed_activity_log successfully\n");
-
-  fprintf(OUTPUT, "\n\n***Starting Key Request Functionality***\n");
-
-  hcp = (hcp_samp_certificate_t *)malloc(sizeof(hcp_samp_certificate_t));
-  memset(hcp, 0, sizeof(hcp_samp_certificate_t));
-  hcp->id = 1;
-  hcp->sig = {0};
-
-  key_req = (pkg_header_t*)malloc(
-                 sizeof(pkg_header_t) + sizeof(hcp_samp_certificate_t));
-
-  if(NULL == key_req)
-  {
-    ret = -1;
-  }
-  key_req->type = TYPE_KEY_REQ;
-  key_req->size = sizeof(hcp_samp_certificate_t);
-
-  memcpy((hcp_samp_certificate_t*)((uint8_t*)key_req + sizeof(pkg_header_t)), hcp, sizeof(hcp_samp_certificate_t));
-
-  fprintf(OUTPUT, "\nHealth Care Provider key request package generated\n");
-
-  ret = kq_network_send_receive("127.0.0.1", key_req, &key_resp);
-
-  if(ret !=0 || !key_resp){
-    ret = -1;
-    fprintf(OUTPUT, "\nError, sending key request failed [%s].", __FUNCTION__);
-  }
-
-  p_enc_dev_keys = (sp_aes_gcm_data_t*)((uint8_t*)key_resp + sizeof(pkg_header_t));
-
-  ret = ecall_put_keys(global_eid, &status, p_enc_dev_keys->payload, p_enc_dev_keys->payload_size, p_enc_dev_keys->payload_tag);
-  if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
-    fprintf(OUTPUT, "\nError, encrypted key set secret using secret_share_key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x", __FUNCTION__, ret, status);
-    goto FINAL;
-  }
-
-  fprintf(OUTPUT, "\nDevice keys loaded in the enclave.\n");
+//   fprintf(OUTPUT, "\n\n***Starting Sealing Secrets Functionality***\n\n");
+//
+//   /*
+//     define seal log parameters
+//   */
+//   /* equal to sgx_calc_sealed_data_size(0,sizeof(replay_protected_pay_load))) in ss.c
+//   */
+// #define SEALED_REPLAY_PROTECTED_PAY_LOAD_SIZE 624
+//   uint32_t sealed_activity_log_length = SEALED_REPLAY_PROTECTED_PAY_LOAD_SIZE;
+//   uint8_t  sealed_activity_log[sealed_activity_log_length];
+//
+//   sgx_ps_cap_t ps_cap;
+//   memset(&ps_cap, 0, sizeof(sgx_ps_cap_t));
+//   ret = sgx_get_ps_cap(&ps_cap);
+//   if(SGX_SUCCESS != ret){
+//     fprintf(OUTPUT, "\nCannot get platform service capability failed in [%s], error code = 0x%0x\n", __FUNCTION__, ret);
+//     ret = -1;
+//     goto FINAL;
+//   }
+//   if(!SGX_IS_MONOTONIC_COUNTER_AVAILABLE(ps_cap)){
+//     fprintf(OUTPUT, "\nMonotonic counter is not supported failed in [%s], error code = 0x%0x\n", __FUNCTION__, SGX_ERROR_SERVICE_UNAVAILABLE);
+//     ret = -1;
+//     goto FINAL;
+//   }
+//
+//
+//   ret = ecall_create_sealed_policy(global_eid, &status, (uint8_t *)sealed_activity_log, sealed_activity_log_length);
+//   if(SGX_SUCCESS != ret){
+//     fprintf(OUTPUT, "\nCall ecall_create_sealed_policy failed in [%s], error code = 0x%0x\n", __FUNCTION__, ret);
+//     ret = -1;
+//     goto FINAL;
+//   }
+//   if(SGX_SUCCESS != status){
+//     fprintf(OUTPUT, "\nCannot create_sealed_policy failed in [%s], error code = 0x%0x\n", __FUNCTION__, status);
+//     ret = -1;
+//     goto FINAL;
+//   }
+//
+//   fprintf(OUTPUT, "\nSecrets sealed in sealed_activity_log successfully\n");
+//
+//   ret = ecall_perform_sealed_policy(global_eid, &status, (uint8_t *)sealed_activity_log, sealed_activity_log_length);
+//   if(SGX_SUCCESS != ret){
+//     fprintf(OUTPUT, "\nCall ecall_perform_sealed_policy failed in [%s], error code = 0x%0x\n", __FUNCTION__, ret);
+//     ret = -1;
+//     goto FINAL;
+//   }
+//   if(SGX_SUCCESS != status){
+//     fprintf(OUTPUT, "\nCannot perform_sealed_policy failed in [%s], error code = 0x%0x\n", __FUNCTION__, status);
+//     ret = -1;
+//     goto FINAL;
+//   }
+//
+//   fprintf(OUTPUT, "\nSecrets sealed recovered from sealed_activity_log successfully\n");
+//
+//   fprintf(OUTPUT, "\n\n***Starting Key Request Functionality***\n");
+//
+//   hcp = (hcp_samp_certificate_t *)malloc(sizeof(hcp_samp_certificate_t));
+//   memset(hcp, 0, sizeof(hcp_samp_certificate_t));
+//   hcp->id = 1;
+//   hcp->sig = {0};
+//
+//   key_req = (pkg_header_t*)malloc(
+//                  sizeof(pkg_header_t) + sizeof(hcp_samp_certificate_t));
+//
+//   if(NULL == key_req)
+//   {
+//     ret = -1;
+//   }
+//   key_req->type = TYPE_KEY_REQ;
+//   key_req->size = sizeof(hcp_samp_certificate_t);
+//
+//   memcpy((hcp_samp_certificate_t*)((uint8_t*)key_req + sizeof(pkg_header_t)), hcp, sizeof(hcp_samp_certificate_t));
+//
+//   fprintf(OUTPUT, "\nHealth Care Provider key request package generated\n");
+//
+//   ret = kq_network_send_receive("127.0.0.1", key_req, &key_resp);
+//
+//   if(ret !=0 || !key_resp){
+//     ret = -1;
+//     fprintf(OUTPUT, "\nError, sending key request failed [%s].", __FUNCTION__);
+//   }
+//
+//   p_enc_dev_keys = (sp_aes_gcm_data_t*)((uint8_t*)key_resp + sizeof(pkg_header_t));
+//
+//   ret = ecall_put_keys(global_eid, &status, p_enc_dev_keys->payload, p_enc_dev_keys->payload_size, p_enc_dev_keys->payload_tag);
+//   if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
+//     fprintf(OUTPUT, "\nError, encrypted key set secret using secret_share_key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x", __FUNCTION__, ret, status);
+//     goto FINAL;
+//   }
+//
+//   fprintf(OUTPUT, "\nDevice keys loaded in the enclave.\n");
 
   // fprintf(OUTPUT, "\n\n***Starting Data Request Functionality***\n");
   //

@@ -21,7 +21,7 @@
 
 #define LEN_OF_PACKAGE_HEADER 8
 #define BUFFER_SIZE 4096
-#define DEFAULT_PORT 8000
+#define DEFAULT_PORT 8001
 
 // Some utility functions to output some of the data structures passed between
 // the app and the trusted broker.
@@ -116,53 +116,98 @@ void PRINT_ATTESTATION_SERVICE_RESPONSE(FILE *file, pkg_header_t *response){
 
 int ra_network_send_receive(const char *server_url, const pkg_header_t *p_req, pkg_header_t **p_resp){
   int ret = 0;
-  pkg_header_t *p_resp_msg;
 
-  if((NULL == server_url) || (NULL == p_req) || (NULL == p_resp)){
+  int socket_fd;
+  struct sockaddr_in servaddr;
+
+  if( (socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ){
+    printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
     ret = -1;
     return ret;
   }
 
+  memset(&servaddr, 0, sizeof(servaddr));
+  servaddr.sin_family = AF_INET;
+  servaddr.sin_addr.s_addr = inet_addr(server_url);
+  servaddr.sin_port = htons(DEFAULT_PORT);
+
+  if( connect(socket_fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 ){
+    printf("connect error: %s(errno: %d)\n", strerror(errno), errno);
+    ret = -1;
+    return ret;
+  }
+
+  int n = 0;
+  char *req_data_buf;
+  char *res_data_buf = (char *)malloc(PKG_SIZE);
+  memset(res_data_buf, 0 , PKG_SIZE);
+  pkg_header_t *res_tmp;
   switch (p_req->type) {
     case TYPE_RA_MSG0:
-      ret = sp_ra_proc_msg0_req((const sample_ra_msg0_t*)((uint8_t*)p_req
-          + sizeof(pkg_header_t)),
-          p_req->size);
-      if (0 != ret)
-      {
-          fprintf(stderr, "\nError, call sp_ra_proc_msg1_req fail [%s].",
-              __FUNCTION__);
+      printf("+++++++hcp sending remote attestation msg0+++++++\n");
+
+      pkg_serial(p_req, &req_data_buf);
+
+      n = send(socket_fd, req_data_buf, PKG_SIZE, 0);
+      if( n <= 0){
+        printf("hcp send remote attestation msg0 error: %s(errno: %d)", strerror(errno), errno);
+        ret = -1;
       }
       break;
     case TYPE_RA_MSG1:
-      ret = sp_ra_proc_msg1_req((const sample_ra_msg1_t*)((uint8_t*)p_req
-          + sizeof(pkg_header_t)),
-          p_req->size,
-          &p_resp_msg);
-      if(0 != ret)
-      {
-          fprintf(stderr, "\nError, call sp_ra_proc_msg1_req fail [%s].",
-              __FUNCTION__);
+      printf("+++++++hcp sending remote attestation msg1+++++++\n");
+
+      pkg_serial(p_req, &req_data_buf);
+
+      n = send(socket_fd, req_data_buf, PKG_SIZE, 0);
+      if( n <= 0){
+        printf("hcp send remote attestation msg1 error: %s(errno: %d)", strerror(errno), errno);
+        ret = -1;
+        return ret;
       }
-      else
-      {
-          *p_resp = p_resp_msg;
+
+      printf("+++++++hcp receiving remote attestation msg2 response from client+++++++\n");
+
+      n = recv(socket_fd, res_data_buf, PKG_SIZE, 0);
+      if( n < 0 ){
+        printf("hcp receive remote attestation msg2 response error: %s(errno: %d)", strerror(errno), errno);
+        ret = -1;
+        // close(socket_fd);
+        return ret;
       }
+
+      pkg_deserial(res_data_buf, &res_tmp);
+
+      *p_resp = res_tmp;
+
       break;
     case TYPE_RA_MSG3:
-      ret = sp_ra_proc_msg3_req((const sample_ra_msg3_t*)((uint8_t*)p_req +
-          sizeof(pkg_header_t)),
-          p_req->size,
-          &p_resp_msg);
-      if(0 != ret)
-      {
-          fprintf(stderr, "\nError, call sp_ra_proc_msg3_req fail [%s].",
-              __FUNCTION__);
+      printf("+++++++hcp sending remote attestation msg3+++++++\n");
+
+      pkg_serial(p_req, &req_data_buf);
+
+      n = send(socket_fd, req_data_buf, PKG_SIZE, 0);
+      if( n <= 0){
+        printf("hcp send remote attestation msg3 error: %s(errno: %d)", strerror(errno), errno);
+        ret = -1;
+        // close(socket_fd);
+        return ret;
       }
-      else
-      {
-          *p_resp = p_resp_msg;
+
+      printf("+++++++hcp receiving remote attestation result (msg4) response from client+++++++\n");
+
+      n = recv(socket_fd, res_data_buf, PKG_SIZE, 0);
+      if( n < 0 ){
+        printf("hcp receive remote attestation result (msg4) response error: %s(errno: %d)", strerror(errno), errno);
+        ret = -1;
+        // close(socket_fd);
+        return ret;
       }
+
+      pkg_deserial(res_data_buf, &res_tmp);
+
+      *p_resp = res_tmp;
+
       break;
     default:
       ret = -1;
@@ -170,6 +215,9 @@ int ra_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
       break;
   }
 
+  // free(req_data_buf);
+  // free(res_data_buf);
+  close(socket_fd);
   return ret;
 }
 
@@ -193,6 +241,7 @@ int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
   if( connect(socket_fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 ){
     printf("connect error: %s(errno: %d)\n", strerror(errno), errno);
     ret = -1;
+    // close(socket_fd);
     return ret;
   }
 
@@ -206,16 +255,18 @@ int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
   if( n <= 0){
     printf("hcp send request data error: %s(errno: %d)", strerror(errno), errno);
     ret = -1;
+    // close(socket_fd);
     return ret;
   }
 
-  printf("+++++++hcp receiving response from hcp+++++++\n");
+  printf("+++++++hcp receiving response from client+++++++\n");
 
   char *res_data_buf = (char *)malloc(PKG_SIZE);
   n = recv(socket_fd, res_data_buf, PKG_SIZE, 0);
   if( n < 0 ){
     printf("hcp receive data error: %s(errno: %d)", strerror(errno), errno);
     ret = -1;
+    // close(socket_fd);
     return ret;
   }
 
@@ -224,8 +275,9 @@ int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
 
   *p_resp = res_tmp;
 
-  free(req_data_buf);
-  free(res_data_buf);
+  // free(req_data_buf);
+  // free(res_data_buf);
+  // close(socket_fd);
   return ret;
 }
 

@@ -3,11 +3,11 @@
 
 Remote_Attestation_C_Files := RemoteAttestation/ecp.c RemoteAttestation/remote_attestation.c RemoteAttestation/ias_ra.c
 
-Remote_Attestation_Include_Paths := -INetwork -IRemoteAttestation -IThirdPartyLibrary -IKeyManagement
+Remote_Attestation_Include_Paths := -INetwork -ILocalStorage -IRemoteAttestation -IThirdPartyLibrary -IKeyManagement
 
 Remote_Attestation_C_Flags := -fPIC -Wno-attributes $(Remote_Attestation_Include_Paths)
 Remote_Attestation_Cpp_Flags := $(Remote_Attestation_C_Flags) -std=c++11
-Remote_Attestation_Link_Flags :=  -shared -LThirdPartyLibrary -lsample_libcrypto
+Remote_Attestation_Link_Flags :=  -shared -L. -LThirdPartyLibrary -lsample_libcrypto -llocalstorage -Wl,-rpath=$(CURDIR)/ThirdPartyLibrary -Wl,-rpath=$(CURDIR)
 
 Remote_Attestation_C_Objects := $(Remote_Attestation_C_Files:.c=.o)
 
@@ -71,10 +71,33 @@ Heartbeat_Link_Flags := -shared -LThirdPartyLibrary -lsample_libcrypto
 
 Heartbeat_C_Objects := $(Heartbeat_C_Files:.c=.o)
 
+######## Network Settings ########
+
+Network_C_Files := Network/network.c
+
+Network_Include_Paths := -INetwork
+
+Network_C_Flags := -fPIC -Wno-attributes $(Network_Include_Paths)
+Network_Cpp_Flags := $(Network_C_Flags) -std=c++11
+Network_Link_Flags := -shared
+
+Network_C_Objects := $(Network_C_Files:.c=.o)
+
+######## LocalStorage Settings ########
+
+LocalStorage_C_Files := LocalStorage/database.c
+
+LocalStorage_Include_Paths := -ILocalStorage -IRemoteAttestation -INetwork -IThirdPartyLibrary
+LocalStorage_C_Flags := -fPIC -Wno-attributes $(LocalStorage_Include_Paths)
+LocalStorage_Cpp_Flags := $(LocalStorage_C_Flags) -std=c++11
+LocalStorage_Link_Flags := -shared -LThirdPartyLibrary -lsample_libcrypto
+
+LocalStorage_C_Objects := $(LocalStorage_C_Files:.c=.o)
+
 ############ App Settings ##############
 
-App_C_Files := tb_main.c Network/network.c
-App_Include_Paths := -INetwork -IKeyManagement -IThirdPartyLibrary
+App_C_Files := tb_main.c
+App_Include_Paths := -INetwork -ILocalStorage -IKeyManagement -IRemoteAttestation -IThirdPartyLibrary
 
 App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
@@ -115,6 +138,14 @@ Heartbeat/%.o: Heartbeat/%.c
 	@$(CXX) $(Heartbeat_C_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
+Network/%.o: Network/%.c
+	@$(CXX) $(Network_C_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
+LocalStorage/%.o: LocalStorage/%.c
+	@$(CXX) $(LocalStorage_C_Flags) -c $< -o $@
+	@echo "CXX  <=  $<"
+
 tb_main.o: tb_main.c
 	@$(CXX) $(App_C_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
@@ -135,11 +166,19 @@ libheartbeat.so: $(Heartbeat_C_Objects)
 	@$(CXX) $^ -o $@ $(Heartbeat_Link_Flags)
 	@echo "LINK =>  $@"
 
-$(App_Name): $(App_C_Objects) libremote_attestation.so libkey_management.so libdata_upload.so libheartbeat.so
+liblocalstorage.so: $(LocalStorage_C_Objects)
+	@$(CXX) $^ -o $@ $(LocalStorage_Link_Flags)
+	@echo "LINK =>  $@"
+
+libnetwork.so: $(Network_C_Objects)
+	@$(CXX) $^ -o $@ $(Network_Link_Flags)
+	@echo "LINK =>  $@"
+
+$(App_Name): $(App_C_Objects) libnetwork.so liblocalstorage.so libremote_attestation.so libkey_management.so libdata_upload.so libheartbeat.so libnetwork.so liblocalstorage.so
 	@$(CXX) $^ -o $@ $(App_Link_Flags)
 	@echo "LINK => $@"
 
 .PHONY: clean
 
 clean:
-	@rm -f $(App_Name) libkey_management.so libremote_attestation.so libdata_upload.so libheartbeat.so $(Key_Management_C_Objects) $(Remote_Attestation_C_Objects) $(Data_Upload_C_Objects) $(Heartbeat_C_Objects) $(App_C_Objects)
+	@rm -f $(App_Name) libkey_management.so libremote_attestation.so libdata_upload.so libheartbeat.so $(Policy_Management_C_Objects) $(Key_Management_C_Objects) $(Remote_Attestation_C_Objects) $(Data_Upload_C_Objects) $(Heartbeat_C_Objects) $(App_C_Objects) $(Network_C_Objects) $(LocalStorage_C_Objects)

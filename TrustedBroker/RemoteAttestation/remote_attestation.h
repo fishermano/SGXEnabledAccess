@@ -1,9 +1,9 @@
 #ifndef REMOTE_ATTESTATION_H
 #define REMOTE_ATTESTATION_H
 
+#include "network.h"
 #include "remote_attestation_result.h"
 #include "ias_ra.h"
-#include "network.h"
 
 typedef enum {
     SP_OK,
