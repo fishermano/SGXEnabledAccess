@@ -97,11 +97,11 @@ LocalStorage_C_Objects := $(LocalStorage_C_Files:.c=.o)
 ############ App Settings ##############
 
 App_C_Files := tb_main.c
-App_Include_Paths := -INetwork -ILocalStorage -IKeyManagement -IRemoteAttestation -IThirdPartyLibrary
+App_Include_Paths := -INetwork -ILocalStorage -IKeyManagement -IRemoteAttestation -IHeartbeat -IThirdPartyLibrary
 
 App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := -L. -LThirdPartyLibrary -lremote_attestation -lkey_management -ldata_upload -lsample_libcrypto -lheartbeat -Wl,-rpath=$(CURDIR)/ThirdPartyLibrary -Wl,-rpath=$(CURDIR)
+App_Link_Flags := -L. -LThirdPartyLibrary -lremote_attestation -lkey_management -ldata_upload -lsample_libcrypto -lheartbeat -lpthread -Wl,-rpath=$(CURDIR)/ThirdPartyLibrary -Wl,-rpath=$(CURDIR)
 
 App_C_Objects := $(App_C_Files:.c=.o)
 

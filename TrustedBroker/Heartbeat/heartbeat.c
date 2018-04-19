@@ -21,7 +21,7 @@ uint8_t counter(){
   return ct++;
 }
 
-int sp_heart_beat_loop(pkg_header_t **response){
+int sp_hb_generate(pkg_header_t **response){
 
   pkg_header_t *p_resp = NULL;
   sp_aes_gcm_data_t *p_encrypted_data = NULL;

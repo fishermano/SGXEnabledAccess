@@ -142,7 +142,7 @@ int ra_network_send_receive(int socket_fd, const pkg_header_t *p_req, pkg_header
         return ret;
       }
 
-      printf("+++++++hcp receiving remote attestation msg2 response from client+++++++\n");
+      printf("+++++++hcp receiving remote attestation msg2 response from trusted broker+++++++\n");
 
       n = recv(socket_fd, res_data_buf, PKG_SIZE, 0);
       if( n < 0 ){
@@ -170,7 +170,7 @@ int ra_network_send_receive(int socket_fd, const pkg_header_t *p_req, pkg_header
         return ret;
       }
 
-      printf("+++++++hcp receiving remote attestation result (msg4) response from client+++++++\n");
+      printf("+++++++hcp receiving remote attestation result (msg4) response from trusted broker+++++++\n");
 
       n = recv(socket_fd, res_data_buf, PKG_SIZE, 0);
       if( n < 0 ){
@@ -214,7 +214,7 @@ int kq_network_send_receive(int socket_fd, const pkg_header_t *p_req, pkg_header
     return ret;
   }
 
-  printf("+++++++hcp receiving response from client+++++++\n");
+  printf("+++++++hcp receiving response from trusted broker+++++++\n");
 
   char *res_data_buf = (char *)malloc(PKG_SIZE);
   n = recv(socket_fd, res_data_buf, PKG_SIZE, 0);
@@ -260,30 +260,31 @@ int kq_network_send_receive(int socket_fd, const pkg_header_t *p_req, pkg_header
 //   return ret;
 // }
 //
-// int hb_network_send_receive(const char *server_url, pkg_header_t **p_resp){
-//
-//   int ret = 0;
-//   pkg_header_t *p_resp_msg;
-//
-//   if(NULL == server_url){
-//     ret = -1;
-//     return ret;
-//   }
-//
-//   ret = sp_heart_beat_loop(&p_resp_msg);
-//
-//   if(0 != ret)
-//   {
-//       fprintf(stderr, "\nError, call sp_heart_beat_loop fail [%s].",
-//           __FUNCTION__);
-//   }
-//   else
-//   {
-//       *p_resp = p_resp_msg;
-//   }
-//
-//   return ret;
-// }
+
+int hb_network_sync(int socket_fd, pkg_header_t **p_resp){
+
+  int ret = 0;
+  printf("+++++++hcp receiving heartbeat synchronization from trusted broker+++++++\n");
+
+  char *res_data_buf = (char *)malloc(PKG_SIZE);
+  int n = 0;
+  n = recv(socket_fd, res_data_buf, PKG_SIZE, 0);
+  if( n < 0 ){
+    printf("hcp receive data error: %s(errno: %d)", strerror(errno), errno);
+    ret = -1;
+    // close(socket_fd);
+    return ret;
+  }
+
+  pkg_header_t *res_tmp;
+  pkg_deserial(res_data_buf, &res_tmp);
+
+  *p_resp = res_tmp;
+
+  free(res_data_buf);
+
+  return ret;
+}
 
 void write_result(const char *res_file, int file_num, double dec_time){
   FILE *out = fopen(res_file, "a");

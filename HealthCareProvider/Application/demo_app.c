@@ -44,8 +44,9 @@
 */
 #include "sgx_uae_service.h"
 
-#define HCP_SERVER "127.0.0.1"
+#define TRUSTED_BROKER_ADDRESS "127.0.0.1"
 #define DEFAULT_PORT 8001
+#define HEARTBEAT_PORT 8002
 
 
 #ifndef SAFE_FREE
@@ -57,35 +58,35 @@
 */
 static sgx_enclave_id_t global_eid = 0;
 
-// void *heartbeat_event_loop(void *freq){
-//
-//   int *hb_freq = (int *)freq;
-//
-//   int ret = 0;
-//   sgx_status_t status = SGX_SUCCESS;
-//
-//   pkg_header_t *hb_resp = NULL;
-//   sp_aes_gcm_data_t *p_enc_hb = NULL;
-//
-//   for(int i = 0; i < 20; i++){
-//
-//     ret = hb_network_send_receive("http://demo_testing.cnsr.vt.edu/", &hb_resp);
-//
-//     if(ret !=0 || !hb_resp){
-//       ret = -1;
-//       fprintf(stderr, "\nError, receiving heartbeat signal failed [%s].", __FUNCTION__);
-//     }
-//
-//     p_enc_hb = (sp_aes_gcm_data_t*)((uint8_t*)hb_resp + sizeof(pkg_header_t));
-//
-//     ret = ecall_heartbeat_process(global_eid, &status, p_enc_hb->payload, p_enc_hb->payload_size, p_enc_hb->payload_tag);
-//     if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
-//       fprintf(stderr, "\nError, decrypted heartbeat using secret_share_key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x", __FUNCTION__, ret, status);
-//     }
-//
-//     sleep(*hb_freq);
-//   }
-// }
+void *heartbeat_event_loop(void *hb_socket){
+
+  int ret = 0;
+  sgx_status_t status = SGX_SUCCESS;
+
+  int *hb_socket_fd = (int *)hb_socket;
+
+  pkg_header_t *hb_resp = NULL;
+  sp_aes_gcm_data_t *p_enc_hb = NULL;
+
+  while(1){
+
+    ret = hb_network_sync(*hb_socket_fd, &hb_resp);
+
+    if(ret !=0 || !hb_resp){
+      ret = -1;
+      fprintf(stderr, "\nError, receiving heartbeat signal failed [%s].", __FUNCTION__);
+    }
+
+    p_enc_hb = (sp_aes_gcm_data_t*)((uint8_t*)hb_resp + sizeof(pkg_header_t));
+
+    ret = ecall_heartbeat_process(global_eid, &status, p_enc_hb->payload, p_enc_hb->payload_size, p_enc_hb->payload_tag);
+    if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
+      fprintf(stderr, "\nError, decrypted heartbeat using secret_share_key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x\n", __FUNCTION__, ret, status);
+    }
+
+    sleep(1);
+  }
+}
 
 /*
   print error message for loading enclave
@@ -199,6 +200,10 @@ int SGX_CDECL main(int argc, char *argv[]){
   int ret = 0;
   sgx_status_t status = SGX_SUCCESS;
 
+
+  /*
+    initialize sockets
+  */
   int socket_fd;
   if( (socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ){
     printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
@@ -207,12 +212,31 @@ int SGX_CDECL main(int argc, char *argv[]){
   }
 
   struct sockaddr_in servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
+  memset(&servaddr, 0, sizeof(sockaddr_in));
   servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr = inet_addr(HCP_SERVER);
+  servaddr.sin_addr.s_addr = inet_addr(TRUSTED_BROKER_ADDRESS);
   servaddr.sin_port = htons(DEFAULT_PORT);
 
-  if( connect(socket_fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 ){
+  if( connect(socket_fd, (struct sockaddr*)&servaddr, sizeof(sockaddr_in)) < 0 ){
+    printf("connect error: %s(errno: %d)\n", strerror(errno), errno);
+    ret = -1;
+    return ret;
+  }
+
+  int hb_socket_fd;
+  if( (hb_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ){
+    printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
+    ret = -1;
+    return ret;
+  }
+
+  struct sockaddr_in hb_servaddr;
+  memset(&hb_servaddr, 0, sizeof(sockaddr_in));
+  hb_servaddr.sin_family = AF_INET;
+  hb_servaddr.sin_addr.s_addr = inet_addr(TRUSTED_BROKER_ADDRESS);
+  hb_servaddr.sin_port = htons(HEARTBEAT_PORT);
+
+  if( connect(hb_socket_fd, (struct sockaddr*)&hb_servaddr, sizeof(sockaddr_in)) < 0 ){
     printf("connect error: %s(errno: %d)\n", strerror(errno), errno);
     ret = -1;
     return ret;
@@ -244,7 +268,6 @@ int SGX_CDECL main(int argc, char *argv[]){
   uint32_t perform_sum_fun_result = -1;
 
   pthread_t hb_id;
-  int hb_loop = 20;
   int hb_freq = 2;
 
   /*
@@ -654,6 +677,15 @@ CLEANUP:
 
   fprintf(OUTPUT, "\nDevice keys loaded in the enclave.\n");
 
+  /*
+    start heartbeat mechanism for the enclave, or no calculation ecall functions can be executed
+  */
+
+  printf("\n\n***Starting Heartbeat Functionality***\n");
+
+  pthread_create(&hb_id, NULL, heartbeat_event_loop, (void *)&hb_socket_fd);
+
+
   // fprintf(OUTPUT, "\n\n***Starting Data Request Functionality***\n");
   //
   // fprintf(OUTPUT, "\nRequest data from the cloud storage.\n");
@@ -695,14 +727,6 @@ CLEANUP:
   //
   // printf("\nthe final sum value returned from the enclave is: %d\n\n", perform_sum_fun_result);
   //
-  // /*
-  //   start heartbeat mechanism for the enclave, or no ecall function can be executed
-  // */
-  //
-  // printf("\n\n***Starting Heartbeat Functionality***\n");
-  // // ecall_start_heartbeat(global_eid, &status);
-  //
-  // pthread_create(&hb_id, NULL, heartbeat_event_loop, (void *)&hb_freq);
   //
   // for(int c=1; c <= 15; c++){
   //   printf("\n\nMain thread: %d\n", c);
@@ -723,6 +747,8 @@ FINAL:
     when an encalve is stoped, you need end hearbeat mechanism exploitly by revoking ecall_end_heartbeat()
   */
   // ecall_end_heartbeat(global_eid, &status);
+
+  sleep(30);
 
   close(socket_fd);
 

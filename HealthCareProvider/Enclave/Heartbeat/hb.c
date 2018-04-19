@@ -1,4 +1,5 @@
 #include "sgx_tae_service.h"
+#include <string.h>
 
 #include "../demo_enclave.h"
 #include "../demo_enclave_t.h"
@@ -7,27 +8,8 @@ extern sgx_time_t hb_state;
 extern sgx_time_source_nonce_t nonce;
 extern uint8_t r_max;
 extern uint8_t u_shared_key[16];
+extern uint8_t shared_key[16];
 
-// sgx_status_t ecall_start_heartbeat(void){
-//   ocall_print("testing enclave function: ecall_start_heartbeat()");
-//
-//   sgx_status_t ret = SGX_SUCCESS;
-//
-//   hb_state = STATUS_HB_ACTIVE;
-//
-//   return ret;
-// }
-//
-// sgx_status_t ecall_end_heartbeat(void){
-//   ocall_print("testing enclave function: ecall_end_heartbeat()");
-//
-//   sgx_status_t ret = SGX_SUCCESS;
-//
-//   hb_state = STATUS_HB_INACTIVE;
-//
-//   return ret;
-//
-// }
 
 void erase(){
 
@@ -35,6 +17,11 @@ void erase(){
 
 sgx_status_t ecall_heartbeat_process(uint8_t* p_hb, uint32_t hb_size, uint8_t* gcm_hb_mac){
   ocall_print("testing enclave function: ecall_heartbeat_process()");
+
+  uint8_t base[16] = {0};
+  if(memcmp(base, u_shared_key, sizeof(u_shared_key)) == 0){
+    memcpy(u_shared_key, shared_key, sizeof(shared_key));
+  }
 
   sgx_status_t ret = SGX_SUCCESS;
 

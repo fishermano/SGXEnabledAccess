@@ -22,7 +22,7 @@ int kq_network_send_receive(int socket_fd, const pkg_header_t *p_req, pkg_header
 
 int dr_network_send_receive(const char *server_url, const uint8_t dev_id, const uint8_t offset, pkg_header_t **p_resp);
 
-int hb_network_send_receive(const char *server_url, pkg_header_t **p_resp);
+int hb_network_sync(int socket_fd, pkg_header_t **p_resp);
 
 void write_result(const char *res_file, int file_num, double dec_time);
 

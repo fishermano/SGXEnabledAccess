@@ -6,18 +6,19 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <pthread.h>
 
 #include "key_management.h"
 #include "remote_attestation.h"
+#include "heartbeat.h"
 
 #include "network.h"
 
 #define LEN_OF_PACKAGE_HEADER 8
 #define LEN_OF_LISTEN_QUENE 20
 #define DEFAULT_PORT 8001
+#define HEARTBEAT_PORT 8002
 #define BUFFER_SIZE 4096
-
-// This is a context data structure used on SP side
 
 void PRINT_BYTE_ARRAY(FILE *file, void *mem, uint32_t len){
     if(!mem || !len)
@@ -37,7 +38,87 @@ void PRINT_BYTE_ARRAY(FILE *file, void *mem, uint32_t len){
     fprintf(file, "\n}\n");
 }
 
+void *heartbeat_event_loop(void *hb_freq){
+
+  int *hb_event_freq = (int *)hb_freq;
+
+  int hb_socket_fd, hb_connect_fd;
+  struct sockaddr_in hb_servaddr;
+
+  //initialize socket
+  if( (hb_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1 ){
+    printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
+    exit(0);
+  }
+
+  //initialize socket address
+  memset(&hb_servaddr, 0, sizeof(sockaddr_in));
+  hb_servaddr.sin_family = AF_INET;
+  hb_servaddr.sin_addr.s_addr = htonl(INADDR_ANY); //set ip address as host ip address
+  hb_servaddr.sin_port = htons(HEARTBEAT_PORT); //set port as default port
+
+  //bind the socket address to the socket
+  if( bind(hb_socket_fd, (struct sockaddr*)&hb_servaddr, sizeof(sockaddr_in)) == -1 ){
+    printf("bind socket error: %s(errno: %d)\n", strerror(errno), errno);
+    exit(0);
+  }
+
+  //listen whether there are clients connecting
+  if( listen(hb_socket_fd, LEN_OF_LISTEN_QUENE) == -1){
+    printf("listen socket error: %s(errno: %d)\n", strerror(errno), errno);
+    exit(0);
+  }
+
+
+  printf("\n\n=======waiting for hcp's heartbeat synchronization request=======\n");
+  if((hb_connect_fd = accept(hb_socket_fd, (struct sockaddr*)NULL, NULL)) == -1 ){
+    printf("trusted broker accept socket error: %s(errno: %d)", strerror(errno), errno);
+  }
+
+  do{
+    int ret = 0;
+    int n = 0;
+
+    char *res_data_buf = NULL;
+    pkg_header_t *res_pkg = NULL;
+
+    printf("-------trusted broker generating hb message: -------\n");
+    ret = sp_hb_generate(&res_pkg);
+    if(0 != ret)
+    {
+      printf("call sp_hb_generate error: %s(errno: %d)", strerror(errno), errno);
+      break;
+    }
+    PRINT_BYTE_ARRAY(stdout, res_pkg->body, res_pkg->size);
+    pkg_serial(res_pkg, &res_data_buf);
+
+    n = send(hb_connect_fd, res_data_buf, PKG_SIZE, 0);
+    if( n <= 0){
+      printf("trusted broker send heartbeat error: %s(errno: %d)", strerror(errno), errno);
+      break;
+    }
+
+    if(NULL != res_data_buf){
+      free(res_data_buf);
+    }
+    if(NULL != res_pkg){
+      free(res_pkg);
+    }
+
+    sleep(*hb_event_freq);
+
+  }while(1);
+
+  close(hb_connect_fd);
+  close(hb_socket_fd);
+
+}
+
 int main(int argc, char** argv){
+
+  pthread_t hb_id;
+  int hb_freq = 2;
+  pthread_create(&hb_id, NULL, heartbeat_event_loop, (void *)&hb_freq);
 
   int socket_fd, connect_fd;
   struct sockaddr_in servaddr;
@@ -203,6 +284,8 @@ int main(int argc, char** argv){
   }
 
   close(socket_fd);
+
+  pthread_exit(NULL);
   return 0;
 
 }
