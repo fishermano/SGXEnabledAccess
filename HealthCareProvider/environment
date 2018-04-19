@@ -1,4 +1,4 @@
-export SGX_SDK=/home/parallels/SGX_SDK/sgxsdk
+export SGX_SDK=/home/cyx/Sgxsdk/sgxsdk
 export PATH=$PATH:$SGX_SDK/bin:$SGX_SDK/bin/x64
 export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SGX_SDK/pkgconfig
 if [ -z "$LD_LIBRARY_PATH" ]; then
