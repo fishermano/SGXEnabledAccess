@@ -208,15 +208,6 @@ int sp_ra_proc_msg1_req(const sample_ra_msg1_t *p_msg1,
             ret = SP_INTERNAL_ERROR;
             break;
         }
-        fprintf(stdout, "\n+++++++++++++++++++++++++\n");
-        uint32_t i;
-        for(i = 0; i < sizeof(g_sp_db->g_a.gx); i++){
-          fprintf(stdout, "0x%x, ", g_sp_db->g_a.gx[i]);
-        }
-        for(i = 0; i < sizeof(g_sp_db->g_a.gy); i++){
-          fprintf(stdout, "0x%x, ", g_sp_db->g_a.gy[i]);
-        }
-        fprintf(stdout, "\n+++++++++++++++++++++++++\n");
 
         // Generate the Service providers ECCDH key pair.
         sample_ret = sample_ecc256_open_context(&ecc_state);
@@ -465,24 +456,6 @@ int sp_ra_proc_msg3_req(const sample_ra_msg3_t *p_msg3,
 
     do
     {
-        fprintf(stdout, "\n**************************\n");
-
-        for(i = 0; i < sizeof(p_msg3->g_a.gx); i++){
-          fprintf(stdout, "0x%x, ", p_msg3->g_a.gx[i]);
-        }
-        for(i = 0; i < sizeof(p_msg3->g_a.gy); i++){
-          fprintf(stdout, "0x%x, ", p_msg3->g_a.gy[i]);
-        }
-        fprintf(stdout, "\n**************************\n");
-
-        fprintf(stdout, "\n@@@@@@@@@@@@@@@@@@@@@@@@\n");
-        for(i = 0; i < sizeof(g_sp_db->g_a.gx); i++){
-          fprintf(stdout, "0x%x, ", g_sp_db->g_a.gx[i]);
-        }
-        for(i = 0; i < sizeof(g_sp_db->g_a.gy); i++){
-          fprintf(stdout, "0x%x, ", g_sp_db->g_a.gy[i]);
-        }
-        fprintf(stdout, "\n@@@@@@@@@@@@@@@@@@@@@@@@\n");
         // Compare g_a in message 3 with local g_a.
         ret = memcmp(&g_sp_db->g_a, &p_msg3->g_a, sizeof(sample_ec_pub_t));
         if(ret)

@@ -67,53 +67,56 @@ int main(int argc, char** argv){
   }
 
   while(1){
+
     printf("\n\n=======waiting for hcp's request=======\n");
     if( (connect_fd = accept(socket_fd, (struct sockaddr*)NULL, NULL)) == -1 ){
       printf("trusted broker accept socket error: %s(errno: %d)", strerror(errno), errno);
       continue;
     }
 
-    //receive package header from hcp
+    bool is_done = false;
+    bool ra_is_done = false;
+    bool kr_is_done = false;
+    do{
 
-    printf("+++++++trusted broker receiving request from hcp+++++++\n");
+      //receive package header from hcp
+      printf("+++++++trusted broker receiving request from hcp+++++++\n");
 
-    char *req_data_buf = (char *)malloc(PKG_SIZE);
-    int n = recv(connect_fd, req_data_buf, PKG_SIZE, 0);
-    if( n < 0 ){
-      printf("trusted broker receive data error: %s(errno: %d)", strerror(errno), errno);
-      exit(0);
-    }
+      char *req_data_buf = (char *)malloc(PKG_SIZE);
+      int n = recv(connect_fd, req_data_buf, PKG_SIZE, 0);
+      if( n < 0 ){
+        printf("trusted broker receive data error: %s(errno: %d)", strerror(errno), errno);
+        exit(0);
+      }
 
-    pkg_header_t *req_pkg = NULL;
-    pkg_deserial(req_data_buf, &req_pkg);
+      pkg_header_t *req_pkg = NULL;
+      pkg_deserial(req_data_buf, &req_pkg);
 
-    int ret = 0;
-    char *res_data_buf = NULL;
-    pkg_header_t *res_pkg = NULL;
-    switch( req_pkg->type ){
-      case TYPE_RA_MSG0:
-        printf("*******trusted broker receiving TYPE_RA_MSG0: *******\n");
-        PRINT_BYTE_ARRAY(stdout, req_pkg->body, req_pkg->size);
-        ret = sp_ra_proc_msg0_req((const sample_ra_msg0_t*)((uint8_t*)req_pkg
-            + sizeof(pkg_header_t)),
-            req_pkg->size);
-        if (0 != ret)
-        {
-          printf("call sp_ra_proc_msg0_req error: %s(errno: %d)", strerror(errno), errno);
+      int ret = 0;
+      char *res_data_buf = NULL;
+      pkg_header_t *res_pkg = NULL;
+      switch( req_pkg->type ){
+        case TYPE_RA_MSG0:
+          printf("*******trusted broker receiving TYPE_RA_MSG0: *******\n");
+          PRINT_BYTE_ARRAY(stdout, req_pkg->body, req_pkg->size);
+          ret = sp_ra_proc_msg0_req((const sample_ra_msg0_t*)((uint8_t*)req_pkg
+              + sizeof(pkg_header_t)),
+              req_pkg->size);
+          if (0 != ret)
+          {
+            printf("call sp_ra_proc_msg0_req error: %s(errno: %d)", strerror(errno), errno);
+            break;
+          }
           break;
-        }
-        break;
-      case TYPE_RA_MSG1:
-        printf("*******trusted broker receiving TYPE_RA_MSG1: *******\n");
-        PRINT_BYTE_ARRAY(stdout, req_pkg->body, req_pkg->size);
-        ret = sp_ra_proc_msg1_req((const sample_ra_msg1_t*)((uint8_t*)req_pkg + sizeof(pkg_header_t)), req_pkg->size, &res_pkg);
-        if(0 != ret)
-        {
-          printf("call sp_ra_proc_msg1_req error: %s(errno: %d)", strerror(errno), errno);
-          break;
-        }
-
-        if( !fork() ){
+        case TYPE_RA_MSG1:
+          printf("*******trusted broker receiving TYPE_RA_MSG1: *******\n");
+          PRINT_BYTE_ARRAY(stdout, req_pkg->body, req_pkg->size);
+          ret = sp_ra_proc_msg1_req((const sample_ra_msg1_t*)((uint8_t*)req_pkg + sizeof(pkg_header_t)), req_pkg->size, &res_pkg);
+          if(0 != ret)
+          {
+            printf("call sp_ra_proc_msg1_req error: %s(errno: %d)", strerror(errno), errno);
+            break;
+          }
 
           printf("-------trusted broker sending back TYPE_RA_MSG2: -------\n");
           PRINT_BYTE_ARRAY(stdout, res_pkg->body, res_pkg->size);
@@ -124,19 +127,18 @@ int main(int argc, char** argv){
             printf("trusted broker send back TYPE_RA_MSG2 error: %s(errno: %d)", strerror(errno), errno);
             break;
           }
-        }
-        break;
-      case TYPE_RA_MSG3:
-        printf("*******trusted broker receiving TYPE_RA_MSG3: *******\n");
-        PRINT_BYTE_ARRAY(stdout, req_pkg->body, req_pkg->size);
 
-        ret = sp_ra_proc_msg3_req((const sample_ra_msg3_t *)((uint8_t*)req_pkg + sizeof(pkg_header_t)), req_pkg->size, &res_pkg);
-        if(0 != ret)
-        {
-          printf("call sp_ra_proc_msg3_req error: %s(errno: %d)", strerror(errno), errno);
           break;
-        }
-        if( !fork() ){
+        case TYPE_RA_MSG3:
+          printf("*******trusted broker receiving TYPE_RA_MSG3: *******\n");
+          PRINT_BYTE_ARRAY(stdout, req_pkg->body, req_pkg->size);
+
+          ret = sp_ra_proc_msg3_req((const sample_ra_msg3_t *)((uint8_t*)req_pkg + sizeof(pkg_header_t)), req_pkg->size, &res_pkg);
+          if(0 != ret)
+          {
+            printf("call sp_ra_proc_msg3_req error: %s(errno: %d)", strerror(errno), errno);
+            break;
+          }
 
           printf("------trusted broker sending back TYPE_RA_ATT_RESULT (MSG4): -------\n");
           PRINT_BYTE_ARRAY(stdout, res_pkg->body, res_pkg->size);
@@ -146,20 +148,20 @@ int main(int argc, char** argv){
           if( n <= 0){
             printf("trusted broker send back TYPE_RA_ATT_RESULT (MSG4) error: %s(errno: %d)", strerror(errno), errno);
             break;
+          }else{
+            ra_is_done = true;
           }
-        }
-        break;
-      case TYPE_KEY_REQ:
-        printf("*******trusted broker receiving TYPE_KEY_REQ: *******\n");
-        PRINT_BYTE_ARRAY(stdout, req_pkg->body, req_pkg->size);
-        ret = sp_km_proc_key_req((const hcp_samp_certificate_t*)((uint8_t*)req_pkg + sizeof(pkg_header_t)), &res_pkg);
-        if(0 != ret)
-        {
-          printf("call sp_km_proc_key_req error: %s(errno: %d)", strerror(errno), errno);
-          break;
-        }
 
-        if( !fork() ){
+          break;
+        case TYPE_KEY_REQ:
+          printf("*******trusted broker receiving TYPE_KEY_REQ: *******\n");
+          PRINT_BYTE_ARRAY(stdout, req_pkg->body, req_pkg->size);
+          ret = sp_km_proc_key_req((const hcp_samp_certificate_t*)((uint8_t*)req_pkg + sizeof(pkg_header_t)), &res_pkg);
+          if(0 != ret)
+          {
+            printf("call sp_km_proc_key_req error: %s(errno: %d)", strerror(errno), errno);
+            break;
+          }
 
           printf("-------trusted broker sending back TYPE_KEY_RES: -------\n");
           PRINT_BYTE_ARRAY(stdout, res_pkg->body, res_pkg->size);
@@ -169,29 +171,38 @@ int main(int argc, char** argv){
           if( n <= 0){
             printf("trusted broker send back TYPE_KEY_RES error: %s(errno: %d)", strerror(errno), errno);
             break;
+          }else{
+            kr_is_done = true;
           }
-        }
-        break;
-      default:
-        printf("unknown package type error: %s(errno: %d)", strerror(errno), errno);
-        break;
-    }
 
-    free(req_data_buf);
-    if(NULL != res_data_buf){
-      free(res_data_buf);
-    }
-    if(NULL != res_pkg){
-      free(res_pkg);
-    }
-    if(NULL != req_pkg){
-      free(req_pkg);
-    }
+          break;
+        default:
+          printf("unknown package type error: %s(errno: %d)", strerror(errno), errno);
+          break;
+      }
+
+      free(req_data_buf);
+      if(NULL != res_data_buf){
+        free(res_data_buf);
+      }
+      if(NULL != res_pkg){
+        free(res_pkg);
+      }
+      if(NULL != req_pkg){
+        free(req_pkg);
+      }
+
+      if(ra_is_done && kr_is_done){
+        is_done = true;
+      }
+
+    }while(!is_done);
+
     close(connect_fd);
+    sleep(3);
   }
 
   close(socket_fd);
-
   return 0;
 
 }

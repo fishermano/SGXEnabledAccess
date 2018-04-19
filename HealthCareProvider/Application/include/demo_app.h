@@ -17,6 +17,8 @@
 // messages and the information flow.
 #include "sample_messages.h"
 
+#include "sample_libcrypto.h"
+
 #ifndef TRUE
 # define TRUE 1
 #endif
@@ -122,5 +124,10 @@ static sgx_errlist_t sgx_errlist[] = {
         NULL
     },
 };
+
+typedef struct hcp_samp_certificate_t{
+  uint8_t id;
+  sample_ec256_signature_t sig;
+}hcp_samp_certificate_t;
 
 #endif

@@ -14,14 +14,10 @@
 #include "utils.h"
 #include "remote_attestation_result.h"
 
-#include "ThirdPartyLibrary/remote_attestation.h"
-#include "ThirdPartyLibrary/key_management.h"
-#include "ThirdPartyLibrary/data_upload.h"
-#include "ThirdPartyLibrary/heartbeat.h"
-
 #define LEN_OF_PACKAGE_HEADER 8
 #define BUFFER_SIZE 4096
-#define DEFAULT_PORT 8001
+
+extern int socket_fd;
 
 // Some utility functions to output some of the data structures passed between
 // the app and the trusted broker.
@@ -114,27 +110,8 @@ void PRINT_ATTESTATION_SERVICE_RESPONSE(FILE *file, pkg_header_t *response){
  * @return int
 */
 
-int ra_network_send_receive(const char *server_url, const pkg_header_t *p_req, pkg_header_t **p_resp){
+int ra_network_send_receive(int socket_fd, const pkg_header_t *p_req, pkg_header_t **p_resp){
   int ret = 0;
-
-  int socket_fd;
-  if( (socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ){
-    printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
-    ret = -1;
-    return ret;
-  }
-
-  struct sockaddr_in servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr = inet_addr(server_url);
-  servaddr.sin_port = htons(DEFAULT_PORT);
-
-  if( connect(socket_fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 ){
-    printf("connect error: %s(errno: %d)\n", strerror(errno), errno);
-    ret = -1;
-    return ret;
-  }
 
   int n = 0;
   char *req_data_buf;
@@ -216,33 +193,12 @@ int ra_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
 
   free(req_data_buf);
   free(res_data_buf);
-  close(socket_fd);
+
   return ret;
 }
 
-int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, pkg_header_t **p_resp){
+int kq_network_send_receive(int socket_fd, const pkg_header_t *p_req, pkg_header_t **p_resp){
   int ret = 0;
-
-  int socket_fd;
-  struct sockaddr_in servaddr;
-
-  if( (socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ){
-    printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
-    ret = -1;
-    return ret;
-  }
-
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr = inet_addr(server_url);
-  servaddr.sin_port = htons(DEFAULT_PORT);
-
-  if( connect(socket_fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 ){
-    printf("connect error: %s(errno: %d)\n", strerror(errno), errno);
-    ret = -1;
-    // close(socket_fd);
-    return ret;
-  }
 
   printf("+++++++hcp sending key request+++++++\n");
 
@@ -276,58 +232,58 @@ int kq_network_send_receive(const char *server_url, const pkg_header_t *p_req, p
 
   free(req_data_buf);
   free(res_data_buf);
-  close(socket_fd);
-  return ret;
-}
-
-int dr_network_send_receive(const char *server_url, const uint8_t dev_id, const uint8_t offset, pkg_header_t **p_resp){
-  int ret = 0;
-  pkg_header_t *p_resp_msg;
-
-  if(NULL == server_url){
-    ret = -1;
-    return ret;
-  }
-
-  ret = sp_upload_data(server_url, dev_id, offset, &p_resp_msg);
-
-  if(0 != ret)
-  {
-      fprintf(stderr, "\nError, call sp_upload_data fail [%s].",
-          __FUNCTION__);
-  }
-  else
-  {
-      *p_resp = p_resp_msg;
-  }
 
   return ret;
 }
 
-int hb_network_send_receive(const char *server_url, pkg_header_t **p_resp){
-
-  int ret = 0;
-  pkg_header_t *p_resp_msg;
-
-  if(NULL == server_url){
-    ret = -1;
-    return ret;
-  }
-
-  ret = sp_heart_beat_loop(&p_resp_msg);
-
-  if(0 != ret)
-  {
-      fprintf(stderr, "\nError, call sp_heart_beat_loop fail [%s].",
-          __FUNCTION__);
-  }
-  else
-  {
-      *p_resp = p_resp_msg;
-  }
-
-  return ret;
-}
+// int dr_network_send_receive(const char *server_url, const uint8_t dev_id, const uint8_t offset, pkg_header_t **p_resp){
+//   int ret = 0;
+//   pkg_header_t *p_resp_msg;
+//
+//   if(NULL == server_url){
+//     ret = -1;
+//     return ret;
+//   }
+//
+//   ret = sp_upload_data(server_url, dev_id, offset, &p_resp_msg);
+//
+//   if(0 != ret)
+//   {
+//       fprintf(stderr, "\nError, call sp_upload_data fail [%s].",
+//           __FUNCTION__);
+//   }
+//   else
+//   {
+//       *p_resp = p_resp_msg;
+//   }
+//
+//   return ret;
+// }
+//
+// int hb_network_send_receive(const char *server_url, pkg_header_t **p_resp){
+//
+//   int ret = 0;
+//   pkg_header_t *p_resp_msg;
+//
+//   if(NULL == server_url){
+//     ret = -1;
+//     return ret;
+//   }
+//
+//   ret = sp_heart_beat_loop(&p_resp_msg);
+//
+//   if(0 != ret)
+//   {
+//       fprintf(stderr, "\nError, call sp_heart_beat_loop fail [%s].",
+//           __FUNCTION__);
+//   }
+//   else
+//   {
+//       *p_resp = p_resp_msg;
+//   }
+//
+//   return ret;
+// }
 
 void write_result(const char *res_file, int file_num, double dec_time){
   FILE *out = fopen(res_file, "a");

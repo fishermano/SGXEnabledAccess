@@ -7,7 +7,7 @@ Remote_Attestation_Include_Paths := -INetwork -ILocalStorage -IRemoteAttestation
 
 Remote_Attestation_C_Flags := -fPIC -Wno-attributes $(Remote_Attestation_Include_Paths)
 Remote_Attestation_Cpp_Flags := $(Remote_Attestation_C_Flags) -std=c++11
-Remote_Attestation_Link_Flags :=  -shared -L. -LThirdPartyLibrary -lsample_libcrypto -llocalstorage -Wl,-rpath=$(CURDIR)/ThirdPartyLibrary -Wl,-rpath=$(CURDIR)
+Remote_Attestation_Link_Flags :=  -shared -L. -LThirdPartyLibrary -lsample_libcrypto -llocalstorage  -lpthread -Wl,-rpath=$(CURDIR)/ThirdPartyLibrary -Wl,-rpath=$(CURDIR)
 
 Remote_Attestation_C_Objects := $(Remote_Attestation_C_Files:.c=.o)
 
@@ -181,4 +181,4 @@ $(App_Name): $(App_C_Objects) libnetwork.so liblocalstorage.so libremote_attesta
 .PHONY: clean
 
 clean:
-	@rm -f $(App_Name) libkey_management.so libremote_attestation.so libdata_upload.so libheartbeat.so $(Policy_Management_C_Objects) $(Key_Management_C_Objects) $(Remote_Attestation_C_Objects) $(Data_Upload_C_Objects) $(Heartbeat_C_Objects) $(App_C_Objects) $(Network_C_Objects) $(LocalStorage_C_Objects)
+	@rm -f $(App_Name) libkey_management.so libremote_attestation.so libdata_upload.so libheartbeat.so liblocalstorage.so libnetwork.so $(Policy_Management_C_Objects) $(Key_Management_C_Objects) $(Remote_Attestation_C_Objects) $(Data_Upload_C_Objects) $(Heartbeat_C_Objects) $(App_C_Objects) $(Network_C_Objects) $(LocalStorage_C_Objects) $(Data_Sample_C_Objects)

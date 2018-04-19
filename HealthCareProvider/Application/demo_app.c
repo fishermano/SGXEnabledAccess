@@ -3,6 +3,11 @@
 */
 #include <limits.h>
 #include <pthread.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 /*
   Needed for untrusted enclave ocall interface
@@ -18,7 +23,6 @@
   Needed to perform some utility functions
 */
 #include "utils.h"
-#include "ThirdPartyLibrary/key_management.h"
 
 /*
   Needed for data structures related to attestation_result
@@ -41,6 +45,7 @@
 #include "sgx_uae_service.h"
 
 #define HCP_SERVER "127.0.0.1"
+#define DEFAULT_PORT 8001
 
 
 #ifndef SAFE_FREE
@@ -52,35 +57,35 @@
 */
 static sgx_enclave_id_t global_eid = 0;
 
-void *heartbeat_event_loop(void *freq){
-
-  int *hb_freq = (int *)freq;
-
-  int ret = 0;
-  sgx_status_t status = SGX_SUCCESS;
-
-  pkg_header_t *hb_resp = NULL;
-  sp_aes_gcm_data_t *p_enc_hb = NULL;
-
-  for(int i = 0; i < 20; i++){
-
-    ret = hb_network_send_receive("http://demo_testing.cnsr.vt.edu/", &hb_resp);
-
-    if(ret !=0 || !hb_resp){
-      ret = -1;
-      fprintf(stderr, "\nError, receiving heartbeat signal failed [%s].", __FUNCTION__);
-    }
-
-    p_enc_hb = (sp_aes_gcm_data_t*)((uint8_t*)hb_resp + sizeof(pkg_header_t));
-
-    ret = ecall_heartbeat_process(global_eid, &status, p_enc_hb->payload, p_enc_hb->payload_size, p_enc_hb->payload_tag);
-    if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
-      fprintf(stderr, "\nError, decrypted heartbeat using secret_share_key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x", __FUNCTION__, ret, status);
-    }
-
-    sleep(*hb_freq);
-  }
-}
+// void *heartbeat_event_loop(void *freq){
+//
+//   int *hb_freq = (int *)freq;
+//
+//   int ret = 0;
+//   sgx_status_t status = SGX_SUCCESS;
+//
+//   pkg_header_t *hb_resp = NULL;
+//   sp_aes_gcm_data_t *p_enc_hb = NULL;
+//
+//   for(int i = 0; i < 20; i++){
+//
+//     ret = hb_network_send_receive("http://demo_testing.cnsr.vt.edu/", &hb_resp);
+//
+//     if(ret !=0 || !hb_resp){
+//       ret = -1;
+//       fprintf(stderr, "\nError, receiving heartbeat signal failed [%s].", __FUNCTION__);
+//     }
+//
+//     p_enc_hb = (sp_aes_gcm_data_t*)((uint8_t*)hb_resp + sizeof(pkg_header_t));
+//
+//     ret = ecall_heartbeat_process(global_eid, &status, p_enc_hb->payload, p_enc_hb->payload_size, p_enc_hb->payload_tag);
+//     if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
+//       fprintf(stderr, "\nError, decrypted heartbeat using secret_share_key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x", __FUNCTION__, ret, status);
+//     }
+//
+//     sleep(*hb_freq);
+//   }
+// }
 
 /*
   print error message for loading enclave
@@ -194,6 +199,25 @@ int SGX_CDECL main(int argc, char *argv[]){
   int ret = 0;
   sgx_status_t status = SGX_SUCCESS;
 
+  int socket_fd;
+  if( (socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ){
+    printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
+    ret = -1;
+    return ret;
+  }
+
+  struct sockaddr_in servaddr;
+  memset(&servaddr, 0, sizeof(servaddr));
+  servaddr.sin_family = AF_INET;
+  servaddr.sin_addr.s_addr = inet_addr(HCP_SERVER);
+  servaddr.sin_port = htons(DEFAULT_PORT);
+
+  if( connect(socket_fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0 ){
+    printf("connect error: %s(errno: %d)\n", strerror(errno), errno);
+    ret = -1;
+    return ret;
+  }
+
   /*
     define msg0 - msg3 and the attestation result message
   */
@@ -273,7 +297,7 @@ int SGX_CDECL main(int argc, char *argv[]){
 
     fprintf(OUTPUT, "\nSending msg0 to remote attestation trusted broker.\n");
 
-    ret = ra_network_send_receive(HCP_SERVER, p_msg0_full, &p_msg0_resp_full);
+    ret = ra_network_send_receive(socket_fd, p_msg0_full, &p_msg0_resp_full);
     if (ret != 0)
     {
         fprintf(OUTPUT, "\nError, ra_network_send_receive for msg0 failed "
@@ -331,7 +355,7 @@ int SGX_CDECL main(int argc, char *argv[]){
 
     do{
       ret = sgx_ra_get_msg1(context, global_eid, sgx_ra_get_ga, (sgx_ra_msg1_t*)((uint8_t*)p_msg1_full + sizeof(pkg_header_t)));
-      sleep(3); // Wait 3s between retries
+      sleep(2); // Wait 3s between retries
     } while (SGX_ERROR_BUSY == ret && busy_retry_time--);
 
     if(SGX_SUCCESS != ret)
@@ -350,13 +374,14 @@ int SGX_CDECL main(int argc, char *argv[]){
       PRINT_BYTE_ARRAY(OUTPUT, p_msg1_full->body, p_msg1_full->size);
     }
 
+    fprintf(OUTPUT, "\nMSG1 package generated\n");
 
     // The demo_app sends msg1 to the trusted broker to get msg2,
     // msg2 needs to be freed when no longer needed.
     // The demo_app decides whether to use linkable or unlinkable signatures.
     fprintf(OUTPUT, "\nSending msg1 to remote attestation service provider. Expecting msg2 back.\n");
 
-    ret = ra_network_send_receive(HCP_SERVER, p_msg1_full, &p_msg2_full);
+    ret = ra_network_send_receive(socket_fd, p_msg1_full, &p_msg2_full);
 
     if(ret != 0 || !p_msg2_full){
       fprintf(OUTPUT, "\nError, ra_network_send_receive for msg1 failed [%s].", __FUNCTION__);
@@ -371,7 +396,7 @@ int SGX_CDECL main(int argc, char *argv[]){
 
       }
 
-      fprintf(OUTPUT, "\nSent MSG1 to remote attestation trusted broker. Received the following MSG2:\n");
+      fprintf(OUTPUT, "\nSent MSG1 successfully. Received the following MSG2:\n");
       PRINT_BYTE_ARRAY(OUTPUT, p_msg2_full, sizeof(pkg_header_t) + p_msg2_full->size);
 
       fprintf(OUTPUT, "\nA more descriptive representation of MSG2:\n");
@@ -401,6 +426,7 @@ int SGX_CDECL main(int argc, char *argv[]){
                          p_msg2_full->size,
                          &p_msg3,
                          &msg3_size);
+      sleep(2);
     }while(SGX_ERROR_BUSY == ret && busy_retry_time--);
 
     if(!p_msg3){
@@ -413,11 +439,10 @@ int SGX_CDECL main(int argc, char *argv[]){
       fprintf(OUTPUT, "\nError, call sgx_ra_proc_msg2 fail. ret = 0x%08x [%s].", ret, __FUNCTION__);
       ret = -1;
       goto CLEANUP;
-    }else{
-      fprintf(OUTPUT, "\nCall sgx_ra_proc_msg2 success.\n");
-      fprintf(OUTPUT, "\nMSG3 - \n");
     }
 
+    fprintf(OUTPUT, "\nCall sgx_ra_proc_msg2 success.\n");
+    fprintf(OUTPUT, "\nMSG3 body generated- \n");
     PRINT_BYTE_ARRAY(OUTPUT, p_msg3, msg3_size);
 
     p_msg3_full = (pkg_header_t*)malloc(
@@ -441,7 +466,7 @@ int SGX_CDECL main(int argc, char *argv[]){
     result attestation msg
   */
   {
-    ret = ra_network_send_receive(HCP_SERVER, p_msg3_full, &p_att_result_msg_full);
+    ret = ra_network_send_receive(socket_fd, p_msg3_full, &p_att_result_msg_full);
 
     if(ret !=0 || !p_att_result_msg_full){
       ret = -1;
@@ -453,11 +478,9 @@ int SGX_CDECL main(int argc, char *argv[]){
       ret = -1;
       fprintf(OUTPUT, "\nError. Sent MSG3 successfully, but the message received was NOT of type att_msg_result. Type = %d. [%s].", p_att_result_msg_full->type, __FUNCTION__);
       goto CLEANUP;
-    }else{
-      fprintf(OUTPUT, "\nSent MSG3 successfully. Received an attestation result message back\n.");
     }
 
-    fprintf(OUTPUT, "\nATTESTATION RESULT RECEIVED - ");
+    fprintf(OUTPUT, "\nSent MSG3 successfully. Received the following attestation result (MSG4)\n.");
     PRINT_BYTE_ARRAY(OUTPUT, p_att_result_msg_full->body, p_att_result_msg_full->size);
 
     fprintf(OUTPUT, "\nA more descriptive ATTESTATION RESULT: \n");
@@ -614,7 +637,7 @@ CLEANUP:
 
   fprintf(OUTPUT, "\nHealth Care Provider key request package generated\n");
 
-  ret = kq_network_send_receive(HCP_SERVER, key_req, &key_resp);
+  ret = kq_network_send_receive(socket_fd, key_req, &key_resp);
 
   if(ret !=0 || !key_resp){
     ret = -1;
@@ -700,6 +723,8 @@ FINAL:
     when an encalve is stoped, you need end hearbeat mechanism exploitly by revoking ecall_end_heartbeat()
   */
   // ecall_end_heartbeat(global_eid, &status);
+
+  close(socket_fd);
 
   sgx_destroy_enclave(global_eid);
 
