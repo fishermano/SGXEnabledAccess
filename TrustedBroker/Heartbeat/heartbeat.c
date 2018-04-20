@@ -11,7 +11,6 @@
 #include "key_management.h"
 
 #define SAMPLE_SP_IV_SIZE 12
-#define REVOKED_THRESHOLD 10
 
 extern sp_samp_ssk_t hcp_0;
 
@@ -37,7 +36,7 @@ int sp_hb_generate(pkg_header_t **response){
 
   p_heartbeat_data->counter = counter();
   p_heartbeat_data->is_revoked = 0;
-  if(p_heartbeat_data->counter >= REVOKED_THRESHOLD){
+  if(p_heartbeat_data->counter % 10 == 0){
     p_heartbeat_data->is_revoked = 1;
     res = 1;
   }

@@ -275,6 +275,7 @@ int SGX_CDECL main(int argc, char *argv[]){
 
   pthread_t hb_id;
   int hb_freq = 2;
+  void *hb_ret;
 
   /*
     define retry parameters
@@ -754,7 +755,9 @@ FINAL:
   */
   // ecall_end_heartbeat(global_eid, &status);
 
-  sleep(50);
+  if (pthread_join(hb_id, &hb_ret) != 0) {
+    perror("pthread_join() error");
+  }
 
   close(socket_fd);
 
