@@ -70,48 +70,54 @@ void *heartbeat_event_loop(void *hb_freq){
   }
 
 
-  printf("\n\n=======waiting for hcp's heartbeat synchronization request=======\n");
-  if((hb_connect_fd = accept(hb_socket_fd, (struct sockaddr*)NULL, NULL)) == -1 ){
-    printf("trusted broker accept socket error: %s(errno: %d)", strerror(errno), errno);
+  while(1){
+    printf("\n\n=======waiting for hcp's heartbeat synchronization request=======\n");
+    if((hb_connect_fd = accept(hb_socket_fd, (struct sockaddr*)NULL, NULL)) == -1 ){
+      printf("trusted broker accept socket error: %s(errno: %d)", strerror(errno), errno);
+    }
+
+    bool end_loop = false;
+    do{
+      int ret = 0;
+      int n = 0;
+
+      char *res_data_buf = NULL;
+      pkg_header_t *res_pkg = NULL;
+
+      printf("-------trusted broker generating hb message: -------\n");
+      ret = sp_hb_generate(&res_pkg);
+      if(-1 == ret){
+        printf("call sp_hb_generate error: %s(errno: %d)", strerror(errno), errno);
+        break;
+      }else if(1 == ret){
+        printf("*******last heartbeat message (revocation)*******\n");
+        end_loop = true;
+      }
+
+      PRINT_BYTE_ARRAY(stdout, res_pkg->body, res_pkg->size);
+      pkg_serial(res_pkg, &res_data_buf);
+
+      n = send(hb_connect_fd, res_data_buf, PKG_SIZE, 0);
+      if( n <= 0){
+        printf("trusted broker send heartbeat error: %s(errno: %d)", strerror(errno), errno);
+        break;
+      }
+
+      if(NULL != res_data_buf){
+        free(res_data_buf);
+      }
+      if(NULL != res_pkg){
+        free(res_pkg);
+      }
+
+      sleep(*hb_event_freq);
+
+    }while(!end_loop);
+
+    close(hb_connect_fd);
+    sleep(3);
   }
-
-  do{
-    int ret = 0;
-    int n = 0;
-
-    char *res_data_buf = NULL;
-    pkg_header_t *res_pkg = NULL;
-
-    printf("-------trusted broker generating hb message: -------\n");
-    ret = sp_hb_generate(&res_pkg);
-    if(0 != ret)
-    {
-      printf("call sp_hb_generate error: %s(errno: %d)", strerror(errno), errno);
-      break;
-    }
-    PRINT_BYTE_ARRAY(stdout, res_pkg->body, res_pkg->size);
-    pkg_serial(res_pkg, &res_data_buf);
-
-    n = send(hb_connect_fd, res_data_buf, PKG_SIZE, 0);
-    if( n <= 0){
-      printf("trusted broker send heartbeat error: %s(errno: %d)", strerror(errno), errno);
-      break;
-    }
-
-    if(NULL != res_data_buf){
-      free(res_data_buf);
-    }
-    if(NULL != res_pkg){
-      free(res_pkg);
-    }
-
-    sleep(*hb_event_freq);
-
-  }while(1);
-
-  close(hb_connect_fd);
   close(hb_socket_fd);
-
 }
 
 int main(int argc, char** argv){

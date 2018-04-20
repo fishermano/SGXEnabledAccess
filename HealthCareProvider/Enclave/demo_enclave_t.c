@@ -93,6 +93,7 @@ typedef struct ms_ecall_heartbeat_process_t {
 	uint8_t* ms_p_hb;
 	uint32_t ms_hb_size;
 	uint8_t* ms_gcm_hb_mac;
+	uint32_t* ms_res_status;
 } ms_ecall_heartbeat_process_t;
 
 typedef struct ms_ecall_perform_statistics_t {
@@ -565,6 +566,9 @@ static sgx_status_t SGX_CDECL sgx_ecall_heartbeat_process(void* pms)
 	uint8_t* _tmp_gcm_hb_mac = ms->ms_gcm_hb_mac;
 	size_t _len_gcm_hb_mac = 16 * sizeof(*_tmp_gcm_hb_mac);
 	uint8_t* _in_gcm_hb_mac = NULL;
+	uint32_t* _tmp_res_status = ms->ms_res_status;
+	size_t _len_res_status = sizeof(*_tmp_res_status);
+	uint32_t* _in_res_status = NULL;
 
 	if (sizeof(*_tmp_gcm_hb_mac) != 0 &&
 		16 > (SIZE_MAX / sizeof(*_tmp_gcm_hb_mac))) {
@@ -574,6 +578,7 @@ static sgx_status_t SGX_CDECL sgx_ecall_heartbeat_process(void* pms)
 
 	CHECK_UNIQUE_POINTER(_tmp_p_hb, _len_p_hb);
 	CHECK_UNIQUE_POINTER(_tmp_gcm_hb_mac, _len_gcm_hb_mac);
+	CHECK_UNIQUE_POINTER(_tmp_res_status, _len_res_status);
 
 	if (_tmp_p_hb != NULL && _len_p_hb != 0) {
 		_in_p_hb = (uint8_t*)malloc(_len_p_hb);
@@ -593,10 +598,22 @@ static sgx_status_t SGX_CDECL sgx_ecall_heartbeat_process(void* pms)
 
 		memcpy(_in_gcm_hb_mac, _tmp_gcm_hb_mac, _len_gcm_hb_mac);
 	}
-	ms->ms_retval = ecall_heartbeat_process(_in_p_hb, _tmp_hb_size, _in_gcm_hb_mac);
+	if (_tmp_res_status != NULL && _len_res_status != 0) {
+		if ((_in_res_status = (uint32_t*)malloc(_len_res_status)) == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memset((void*)_in_res_status, 0, _len_res_status);
+	}
+	ms->ms_retval = ecall_heartbeat_process(_in_p_hb, _tmp_hb_size, _in_gcm_hb_mac, _in_res_status);
 err:
 	if (_in_p_hb) free(_in_p_hb);
 	if (_in_gcm_hb_mac) free(_in_gcm_hb_mac);
+	if (_in_res_status) {
+		memcpy(_tmp_res_status, _in_res_status, _len_res_status);
+		free(_in_res_status);
+	}
 
 	return status;
 }

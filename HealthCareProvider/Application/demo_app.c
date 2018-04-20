@@ -62,13 +62,15 @@ void *heartbeat_event_loop(void *hb_socket){
 
   int ret = 0;
   sgx_status_t status = SGX_SUCCESS;
+  uint32_t hb_status = 0;
 
   int *hb_socket_fd = (int *)hb_socket;
 
   pkg_header_t *hb_resp = NULL;
   sp_aes_gcm_data_t *p_enc_hb = NULL;
 
-  while(1){
+  bool end_loop = false;
+  do{
 
     ret = hb_network_sync(*hb_socket_fd, &hb_resp);
 
@@ -79,13 +81,17 @@ void *heartbeat_event_loop(void *hb_socket){
 
     p_enc_hb = (sp_aes_gcm_data_t*)((uint8_t*)hb_resp + sizeof(pkg_header_t));
 
-    ret = ecall_heartbeat_process(global_eid, &status, p_enc_hb->payload, p_enc_hb->payload_size, p_enc_hb->payload_tag);
+    ret = ecall_heartbeat_process(global_eid, &status, p_enc_hb->payload, p_enc_hb->payload_size, p_enc_hb->payload_tag, &hb_status);
     if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
       fprintf(stderr, "\nError, decrypted heartbeat using secret_share_key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x\n", __FUNCTION__, ret, status);
     }
 
+    if(2 == hb_status){
+      end_loop = true;
+    }
+
     sleep(1);
-  }
+  }while(!end_loop);
 }
 
 /*
@@ -748,7 +754,7 @@ FINAL:
   */
   // ecall_end_heartbeat(global_eid, &status);
 
-  sleep(30);
+  sleep(50);
 
   close(socket_fd);
 

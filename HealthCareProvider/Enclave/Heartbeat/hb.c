@@ -15,7 +15,14 @@ void erase(){
 
 }
 
-sgx_status_t ecall_heartbeat_process(uint8_t* p_hb, uint32_t hb_size, uint8_t* gcm_hb_mac){
+/*
+ * SUCCESS: 1
+ * REVOKED: 2
+ * REPLAY: 3
+ *
+ */
+
+sgx_status_t ecall_heartbeat_process(uint8_t* p_hb, uint32_t hb_size, uint8_t* gcm_hb_mac, uint32_t *res_status){
   ocall_print("testing enclave function: ecall_heartbeat_process()");
 
   uint8_t base[16] = {0};
@@ -44,6 +51,7 @@ sgx_status_t ecall_heartbeat_process(uint8_t* p_hb, uint32_t hb_size, uint8_t* g
 
     if( 1 == hb->is_revoked ){
       ocall_print("REVOKED\n");
+      *res_status = 2;
       erase();
     }else if( 0 == hb->is_revoked){
       ocall_print("SUCCESS");
@@ -61,10 +69,12 @@ sgx_status_t ecall_heartbeat_process(uint8_t* p_hb, uint32_t hb_size, uint8_t* g
       ocall_print("current state:");
       ocall_print_int((int) hb_state);
       sgx_close_pse_session();
+      *res_status = 1;
     }
 
   }else{
     ocall_print("REPLAY\n");
+    *res_status = 3;
   }
 
   return ret;

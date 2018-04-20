@@ -23,6 +23,8 @@ uint8_t counter(){
 
 int sp_hb_generate(pkg_header_t **response){
 
+  int res = 0;
+
   pkg_header_t *p_resp = NULL;
   sp_aes_gcm_data_t *p_encrypted_data = NULL;
   sp_samp_heartbeat_data_t *p_heartbeat_data = NULL;
@@ -37,6 +39,7 @@ int sp_hb_generate(pkg_header_t **response){
   p_heartbeat_data->is_revoked = 0;
   if(p_heartbeat_data->counter >= REVOKED_THRESHOLD){
     p_heartbeat_data->is_revoked = 1;
+    res = 1;
   }
 
   fprintf(stdout, "\ncurrent sending heartbeat counter: %d \n", p_heartbeat_data->counter);
@@ -77,5 +80,5 @@ int sp_hb_generate(pkg_header_t **response){
 
   *response = p_resp;
 
-  return 0;
+  return res;
 }

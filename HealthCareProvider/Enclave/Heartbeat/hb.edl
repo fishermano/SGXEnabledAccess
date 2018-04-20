@@ -10,6 +10,6 @@ enclave{
     public sgx_status_t ecall_start_heartbeat(void);
     public sgx_status_t ecall_end_heartbeat(void);
     */
-    public sgx_status_t ecall_heartbeat_process([in,size=hb_size] uint8_t* p_hb, uint32_t hb_size, [in,count=16] uint8_t* gcm_hb_mac);
+    public sgx_status_t ecall_heartbeat_process([in,size=hb_size] uint8_t* p_hb, uint32_t hb_size, [in,count=16] uint8_t* gcm_hb_mac, [out] uint32_t *res_status);
   };
 };

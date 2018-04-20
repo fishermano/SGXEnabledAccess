@@ -77,6 +77,7 @@ typedef struct ms_ecall_heartbeat_process_t {
 	uint8_t* ms_p_hb;
 	uint32_t ms_hb_size;
 	uint8_t* ms_gcm_hb_mac;
+	uint32_t* ms_res_status;
 } ms_ecall_heartbeat_process_t;
 
 typedef struct ms_ecall_perform_statistics_t {
@@ -396,13 +397,14 @@ sgx_status_t ecall_put_keys(sgx_enclave_id_t eid, sgx_status_t* retval, uint8_t*
 	return status;
 }
 
-sgx_status_t ecall_heartbeat_process(sgx_enclave_id_t eid, sgx_status_t* retval, uint8_t* p_hb, uint32_t hb_size, uint8_t* gcm_hb_mac)
+sgx_status_t ecall_heartbeat_process(sgx_enclave_id_t eid, sgx_status_t* retval, uint8_t* p_hb, uint32_t hb_size, uint8_t* gcm_hb_mac, uint32_t* res_status)
 {
 	sgx_status_t status;
 	ms_ecall_heartbeat_process_t ms;
 	ms.ms_p_hb = p_hb;
 	ms.ms_hb_size = hb_size;
 	ms.ms_gcm_hb_mac = gcm_hb_mac;
+	ms.ms_res_status = res_status;
 	status = sgx_ecall(eid, 10, &ocall_table_demo_enclave, &ms);
 	if (status == SGX_SUCCESS && retval) *retval = ms.ms_retval;
 	return status;
