@@ -18,8 +18,7 @@
 extern "C" {
 #endif
 
-void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_print, (const char* str));
-void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_print_int, (int num));
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_print_string, (const char* str));
 sgx_status_t SGX_UBRIDGE(SGX_NOCONVENTION, create_session_ocall, (uint32_t* sid, uint8_t* dh_msg1, uint32_t dh_msg1_size, uint32_t timeout));
 sgx_status_t SGX_UBRIDGE(SGX_NOCONVENTION, exchange_report_ocall, (uint32_t sid, uint8_t* dh_msg2, uint32_t dh_msg2_size, uint8_t* dh_msg3, uint32_t dh_msg3_size, uint32_t timeout));
 sgx_status_t SGX_UBRIDGE(SGX_NOCONVENTION, close_session_ocall, (uint32_t sid, uint32_t timeout));

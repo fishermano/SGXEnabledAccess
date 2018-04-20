@@ -1,8 +1,11 @@
-#include <assert.h>
-#include "../demo_enclave_t.h"
+#include "string.h"
+
 #include "sgx_tkey_exchange.h"
 #include "sgx_tcrypto.h"
-#include "string.h"
+
+#include "../demo_enclave.h"
+#include "../demo_enclave_t.h"
+
 
 // This is the public EC key of the SP. The corresponding private EC key is
 // used by the SP to sign data used in the remote attestation SIGMA protocol
@@ -200,7 +203,7 @@ int consttime_memequal(const void *b1, const void *b2, size_t len){
 //         for creating a key context.
 
 sgx_status_t ecall_init_ra(int b_pse, sgx_ra_context_t *p_context){
-  ocall_print("testing enclave function: ecall_init_ra()");
+  myprintf("testing enclave function: ecall_init_ra()\n");
 
   sgx_status_t ret;
   if(b_pse)
@@ -234,7 +237,7 @@ sgx_status_t ecall_init_ra(int b_pse, sgx_ra_context_t *p_context){
 // @return Return value from the key context close API
 
 sgx_status_t SGXAPI ecall_close_ra(sgx_ra_context_t context){
-  ocall_print("testing enclave function: ecall_close_ra()");
+  myprintf("testing enclave function: ecall_close_ra()\n");
 
   sgx_status_t ret;
   ret = sgx_ra_close(context);
@@ -257,7 +260,7 @@ sgx_status_t SGXAPI ecall_close_ra(sgx_ra_context_t context){
 // @return Any error produced by the AESCMAC function.
 // @return SGX_ERROR_MAC_MISMATCH - MAC compare fails.
 sgx_status_t ecall_verify_result_mac(sgx_ra_context_t context, uint8_t* p_message, size_t message_size, uint8_t* p_mac, size_t mac_size){
-  ocall_print("testing enclave function: ecall_verify_att_result_mac()");
+  myprintf("testing enclave function: ecall_verify_att_result_mac()\n");
 
   sgx_status_t ret;
   sgx_ec_key_128bit_t mk_key;
@@ -309,7 +312,7 @@ sgx_status_t ecall_verify_result_mac(sgx_ra_context_t context, uint8_t* p_messag
 //         expected value.
 
 sgx_status_t ecall_put_secrets(sgx_ra_context_t context, uint8_t *p_secret, uint32_t secret_size, uint8_t *p_gcm_mac){
-  ocall_print("testing enclave function: ecall_put_secrets()");
+  myprintf("testing enclave function: ecall_put_secrets()\n");
 
   sgx_status_t ret = SGX_SUCCESS;
   sgx_ec_key_128bit_t sk_key;

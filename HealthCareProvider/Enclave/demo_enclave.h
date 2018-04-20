@@ -22,4 +22,8 @@ typedef struct heartbeat_data_t{
   uint8_t is_revoked; //0 is not revoked; 1 is revoked
 }heartbeat_data_t;
 
+uint8_t hb_assert(void);
+
+void myprintf(const char *fmt, ...);
+
 #endif

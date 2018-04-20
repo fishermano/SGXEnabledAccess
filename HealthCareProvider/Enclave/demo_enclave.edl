@@ -10,7 +10,6 @@ enclave{
   from "Evaluation/eval.edl" import *;
 
   untrusted{
-    void ocall_print([in, string]const char* str);
-    void ocall_print_int(int num);
+    void ocall_print_string([in, string]const char* str);
   };
 };

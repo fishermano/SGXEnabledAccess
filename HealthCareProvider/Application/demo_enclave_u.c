@@ -100,13 +100,9 @@ typedef struct ms_ecall_evaluate_decryption_t {
 	uint32_t ms_total_size;
 } ms_ecall_evaluate_decryption_t;
 
-typedef struct ms_ocall_print_t {
+typedef struct ms_ocall_print_string_t {
 	char* ms_str;
-} ms_ocall_print_t;
-
-typedef struct ms_ocall_print_int_t {
-	int ms_num;
-} ms_ocall_print_int_t;
+} ms_ocall_print_string_t;
 
 typedef struct ms_create_session_ocall_t {
 	sgx_status_t ms_retval;
@@ -169,18 +165,10 @@ typedef struct ms_sgx_thread_set_multiple_untrusted_events_ocall_t {
 	size_t ms_total;
 } ms_sgx_thread_set_multiple_untrusted_events_ocall_t;
 
-static sgx_status_t SGX_CDECL demo_enclave_ocall_print(void* pms)
+static sgx_status_t SGX_CDECL demo_enclave_ocall_print_string(void* pms)
 {
-	ms_ocall_print_t* ms = SGX_CAST(ms_ocall_print_t*, pms);
-	ocall_print((const char*)ms->ms_str);
-
-	return SGX_SUCCESS;
-}
-
-static sgx_status_t SGX_CDECL demo_enclave_ocall_print_int(void* pms)
-{
-	ms_ocall_print_int_t* ms = SGX_CAST(ms_ocall_print_int_t*, pms);
-	ocall_print_int(ms->ms_num);
+	ms_ocall_print_string_t* ms = SGX_CAST(ms_ocall_print_string_t*, pms);
+	ocall_print_string((const char*)ms->ms_str);
 
 	return SGX_SUCCESS;
 }
@@ -259,12 +247,11 @@ static sgx_status_t SGX_CDECL demo_enclave_sgx_thread_set_multiple_untrusted_eve
 
 static const struct {
 	size_t nr_ocall;
-	void * table[11];
+	void * table[10];
 } ocall_table_demo_enclave = {
-	11,
+	10,
 	{
-		(void*)demo_enclave_ocall_print,
-		(void*)demo_enclave_ocall_print_int,
+		(void*)demo_enclave_ocall_print_string,
 		(void*)demo_enclave_create_session_ocall,
 		(void*)demo_enclave_exchange_report_ocall,
 		(void*)demo_enclave_close_session_ocall,

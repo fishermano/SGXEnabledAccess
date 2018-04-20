@@ -5,8 +5,6 @@
 #include "../demo_enclave.h"
 #include "../demo_enclave_t.h"
 
-//#include "mycrypto.h"
-
 extern uint8_t shared_key[16];
 
 struct file_t {
@@ -18,9 +16,7 @@ struct file_t {
 
 sgx_status_t ecall_evaluate_decryption(uint8_t *p_files, uint32_t file_number, uint32_t total_size){
 
-  ocall_print("testing enclave function: ecall_evaluate_decryption()");
-  ocall_print_int(file_number);
-  ocall_print_int(total_size);
+  myprintf("testing enclave function: ecall_evaluate_decryption()\n");
 
   sgx_status_t ret = SGX_SUCCESS;
 

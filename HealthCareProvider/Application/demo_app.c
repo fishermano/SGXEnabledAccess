@@ -45,7 +45,7 @@
 #include "sgx_uae_service.h"
 
 #define TRUSTED_BROKER_ADDRESS "127.0.0.1"
-#define DEFAULT_PORT 8001
+#define MAIN_PORT 8001
 #define HEARTBEAT_PORT 8002
 
 
@@ -58,6 +58,9 @@
 */
 static sgx_enclave_id_t global_eid = 0;
 
+/*
+ * define heartbeat thread function
+ */
 void *heartbeat_event_loop(void *hb_socket){
 
   int ret = 0;
@@ -75,8 +78,8 @@ void *heartbeat_event_loop(void *hb_socket){
     ret = hb_network_sync(*hb_socket_fd, &hb_resp);
 
     if(ret !=0 || !hb_resp){
-      ret = -1;
       fprintf(stderr, "\nError, receiving heartbeat signal failed [%s].", __FUNCTION__);
+      exit(0);
     }
 
     p_enc_hb = (sp_aes_gcm_data_t*)((uint8_t*)hb_resp + sizeof(pkg_header_t));
@@ -84,13 +87,18 @@ void *heartbeat_event_loop(void *hb_socket){
     ret = ecall_heartbeat_process(global_eid, &status, p_enc_hb->payload, p_enc_hb->payload_size, p_enc_hb->payload_tag, &hb_status);
     if((SGX_SUCCESS != ret) || (SGX_SUCCESS != status)){
       fprintf(stderr, "\nError, decrypted heartbeat using secret_share_key based AESGCM failed in [%s]. ret = 0x%0x. status = 0x%0x\n", __FUNCTION__, ret, status);
+      exit(0);
     }
 
+    /*
+     * SUCCESS: 1
+     * REVOKED: 2
+     * REPLAY: 3
+     */
     if(2 == hb_status){
       end_loop = true;
     }
 
-    sleep(1);
   }while(!end_loop);
 }
 
@@ -187,12 +195,8 @@ int initialize_enclave(void)
 /*
   define the untrusted enclave ocall functions
 */
-void ocall_print(const char* str){
-  printf("%s\n", str);
-}
-
-void ocall_print_int(int num){
-  printf("The number is: %d\n", num);
+void ocall_print_string(const char* str){
+  printf("%s", str);
 }
 
 /*
@@ -221,7 +225,7 @@ int SGX_CDECL main(int argc, char *argv[]){
   memset(&servaddr, 0, sizeof(sockaddr_in));
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = inet_addr(TRUSTED_BROKER_ADDRESS);
-  servaddr.sin_port = htons(DEFAULT_PORT);
+  servaddr.sin_port = htons(MAIN_PORT);
 
   if( connect(socket_fd, (struct sockaddr*)&servaddr, sizeof(sockaddr_in)) < 0 ){
     printf("connect error: %s(errno: %d)\n", strerror(errno), errno);

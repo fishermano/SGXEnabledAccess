@@ -1,5 +1,5 @@
 #include "sgx_tae_service.h"
-#include <string.h>
+#include "string.h"
 
 #include "../demo_enclave.h"
 #include "../demo_enclave_t.h"
@@ -23,7 +23,7 @@ void erase(){
  */
 
 sgx_status_t ecall_heartbeat_process(uint8_t* p_hb, uint32_t hb_size, uint8_t* gcm_hb_mac, uint32_t *res_status){
-  ocall_print("testing enclave function: ecall_heartbeat_process()");
+  myprintf("testing enclave function: ecall_heartbeat_process()\n");
 
   uint8_t base[16] = {0};
   if(memcmp(base, u_shared_key, sizeof(u_shared_key)) == 0){
@@ -37,24 +37,21 @@ sgx_status_t ecall_heartbeat_process(uint8_t* p_hb, uint32_t hb_size, uint8_t* g
   uint8_t aes_gcm_iv[12] = {0};
   ret = sgx_rijndael128GCM_decrypt(&u_shared_key, p_hb, hb_size, &hb->r, &aes_gcm_iv[0], 12, NULL, 0, (const sgx_aes_gcm_128bit_tag_t *)(gcm_hb_mac));
 
-  ocall_print("decrypted current counter:");
-  ocall_print_int(hb->r);
-  ocall_print("decrypted is_revoked:");
-  ocall_print_int(hb->is_revoked);
+  myprintf("decrypted current counter: %d\n", hb->r);
+  myprintf("decrypted is_revoked: %d\n", hb->is_revoked);
 
-  ocall_print("maximum counter received before:");
-  ocall_print_int(r_max);
+  myprintf("maximum counter received before: %d\n", r_max);
 
   if( r_max < hb->r ){
 
     r_max = hb->r;
 
     if( 1 == hb->is_revoked ){
-      ocall_print("REVOKED\n");
+      myprintf("REVOKED\n");
       *res_status = 2;
       erase();
     }else if( 0 == hb->is_revoked){
-      ocall_print("SUCCESS");
+      myprintf("SUCCESS\n");
       ret = sgx_create_pse_session();
       if(SGX_SUCCESS != ret){
         return ret;
@@ -66,14 +63,13 @@ sgx_status_t ecall_heartbeat_process(uint8_t* p_hb, uint32_t hb_size, uint8_t* g
         return ret;
       }
 
-      ocall_print("current state:");
-      ocall_print_int((int) hb_state);
+      myprintf("current state: %d\n", hb_state);
       sgx_close_pse_session();
       *res_status = 1;
     }
 
   }else{
-    ocall_print("REPLAY\n");
+    myprintf("REPLAY\n");
     *res_status = 3;
   }
 

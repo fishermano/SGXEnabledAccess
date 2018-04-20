@@ -16,9 +16,10 @@
 
 #define LEN_OF_PACKAGE_HEADER 8
 #define LEN_OF_LISTEN_QUENE 20
-#define DEFAULT_PORT 8001
+#define MAIN_PORT 8001
 #define HEARTBEAT_PORT 8002
 #define BUFFER_SIZE 4096
+#define HB_FREQUENCY 3
 
 void PRINT_BYTE_ARRAY(FILE *file, void *mem, uint32_t len){
     if(!mem || !len)
@@ -123,7 +124,7 @@ void *heartbeat_event_loop(void *hb_freq){
 int main(int argc, char** argv){
 
   pthread_t hb_id;
-  int hb_freq = 2;
+  int hb_freq = HB_FREQUENCY;
   pthread_create(&hb_id, NULL, heartbeat_event_loop, (void *)&hb_freq);
 
   int socket_fd, connect_fd;
@@ -139,7 +140,7 @@ int main(int argc, char** argv){
   memset(&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = htonl(INADDR_ANY); //set ip address as host ip address
-  servaddr.sin_port = htons(DEFAULT_PORT); //set port as default port
+  servaddr.sin_port = htons(MAIN_PORT); //set port as default port
 
   //bind the socket address to the socket
   if( bind(socket_fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) == -1 ){
