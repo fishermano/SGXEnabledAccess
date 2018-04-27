@@ -12,11 +12,6 @@
 #include "sgx_error.h"       /* sgx_status_t */
 #include "sgx_eid.h"     /* sgx_enclave_id_t */
 
-// In addition to generating and sending messages, this application
-// can use pre-generated messages to verify the generation of
-// messages and the information flow.
-#include "sample_messages.h"
-
 #include "sample_libcrypto.h"
 
 #ifndef TRUE
@@ -31,14 +26,6 @@
 # define ENCLAVE_FILENAME "demo_enclave.signed.so"
 
 # define MAX_PATH FILENAME_MAX
-
-//extern sgx_enclave_id_t global_eid;
-
-uint8_t* msg1_samples[] = { msg1_sample1, msg1_sample2 };
-uint8_t* msg2_samples[] = { msg2_sample1, msg2_sample2 };
-uint8_t* msg3_samples[] = { msg3_sample1, msg3_sample2 };
-uint8_t* attestation_msg_samples[] =
-    { attestation_msg_sample1, attestation_msg_sample2};
 
 typedef struct _sgx_errlist_t {
     sgx_status_t err;
@@ -125,9 +112,9 @@ static sgx_errlist_t sgx_errlist[] = {
     },
 };
 
-typedef struct hcp_samp_certificate_t{
+typedef struct _sp_certificate_t{
   uint8_t id;
   sample_ec256_signature_t sig;
-}hcp_samp_certificate_t;
+}sp_certificate_t;
 
 #endif

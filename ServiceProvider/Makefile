@@ -44,7 +44,7 @@ else
 endif
 
 App_C_Files := $(wildcard Application/*.c)
-App_Include_Paths := -I$(SGX_SDK)/include -IThirdPartyLibrary -IIncludes -IApplication -IApplication/include
+App_Include_Paths := -I$(SGX_SDK)/include -IThirdPartyLibrary -IApplication -IApplication/include
 
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 

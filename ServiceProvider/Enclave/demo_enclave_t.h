@@ -30,7 +30,6 @@ sgx_status_t ecall_perform_sealed_policy(const uint8_t* sealed_log, uint32_t sea
 sgx_status_t ecall_put_keys(uint8_t* p_secret, uint32_t secret_size, uint8_t* gcm_mac);
 sgx_status_t ecall_heartbeat_process(uint8_t* p_hb, uint32_t hb_size, uint8_t* gcm_hb_mac, uint32_t* res_status);
 sgx_status_t ecall_perform_statistics(uint8_t* p_secret_1, uint32_t secret_size_1, uint8_t* gcm_mac_1, uint8_t dev_id_1, uint8_t* p_secret_2, uint32_t secret_size_2, uint8_t* gcm_mac_2, uint8_t dev_id_2, uint32_t* result);
-sgx_status_t ecall_evaluate_decryption(uint8_t* p_files, uint32_t file_number, uint32_t total_size);
 
 sgx_status_t SGX_CDECL ocall_print_string(const char* str);
 sgx_status_t SGX_CDECL create_session_ocall(sgx_status_t* retval, uint32_t* sid, uint8_t* dh_msg1, uint32_t dh_msg1_size, uint32_t timeout);

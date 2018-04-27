@@ -265,7 +265,7 @@ int SGX_CDECL main(int argc, char *argv[]){
 
   pkg_header_t *key_req = NULL;
   pkg_header_t *key_resp = NULL;
-  hcp_samp_certificate_t * hcp = NULL;
+  sp_certificate_t * hcp = NULL;
   sp_aes_gcm_data_t *p_enc_dev_keys = NULL;
 
   pkg_header_t *dev_0_offset_0_data_resp = NULL;
@@ -652,22 +652,22 @@ CLEANUP:
 //
   fprintf(OUTPUT, "\n\n***Starting Key Request Functionality***\n");
 
-  hcp = (hcp_samp_certificate_t *)malloc(sizeof(hcp_samp_certificate_t));
-  memset(hcp, 0, sizeof(hcp_samp_certificate_t));
+  hcp = (sp_certificate_t *)malloc(sizeof(sp_certificate_t));
+  memset(hcp, 0, sizeof(sp_certificate_t));
   hcp->id = 1;
   hcp->sig = {0};
 
   key_req = (pkg_header_t*)malloc(
-                 sizeof(pkg_header_t) + sizeof(hcp_samp_certificate_t));
+                 sizeof(pkg_header_t) + sizeof(sp_certificate_t));
 
   if(NULL == key_req)
   {
     ret = -1;
   }
   key_req->type = TYPE_KEY_REQ;
-  key_req->size = sizeof(hcp_samp_certificate_t);
+  key_req->size = sizeof(sp_certificate_t);
 
-  memcpy((hcp_samp_certificate_t*)((uint8_t*)key_req + sizeof(pkg_header_t)), hcp, sizeof(hcp_samp_certificate_t));
+  memcpy((sp_certificate_t*)((uint8_t*)key_req + sizeof(pkg_header_t)), hcp, sizeof(sp_certificate_t));
 
   fprintf(OUTPUT, "\nHealth Care Provider key request package generated\n");
 

@@ -109,13 +109,6 @@ typedef struct ms_ecall_perform_statistics_t {
 	uint32_t* ms_result;
 } ms_ecall_perform_statistics_t;
 
-typedef struct ms_ecall_evaluate_decryption_t {
-	sgx_status_t ms_retval;
-	uint8_t* ms_p_files;
-	uint32_t ms_file_number;
-	uint32_t ms_total_size;
-} ms_ecall_evaluate_decryption_t;
-
 typedef struct ms_ocall_print_string_t {
 	char* ms_str;
 } ms_ocall_print_string_t;
@@ -713,39 +706,11 @@ err:
 	return status;
 }
 
-static sgx_status_t SGX_CDECL sgx_ecall_evaluate_decryption(void* pms)
-{
-	CHECK_REF_POINTER(pms, sizeof(ms_ecall_evaluate_decryption_t));
-	ms_ecall_evaluate_decryption_t* ms = SGX_CAST(ms_ecall_evaluate_decryption_t*, pms);
-	sgx_status_t status = SGX_SUCCESS;
-	uint8_t* _tmp_p_files = ms->ms_p_files;
-	uint32_t _tmp_total_size = ms->ms_total_size;
-	size_t _len_p_files = _tmp_total_size;
-	uint8_t* _in_p_files = NULL;
-
-	CHECK_UNIQUE_POINTER(_tmp_p_files, _len_p_files);
-
-	if (_tmp_p_files != NULL && _len_p_files != 0) {
-		_in_p_files = (uint8_t*)malloc(_len_p_files);
-		if (_in_p_files == NULL) {
-			status = SGX_ERROR_OUT_OF_MEMORY;
-			goto err;
-		}
-
-		memcpy(_in_p_files, _tmp_p_files, _len_p_files);
-	}
-	ms->ms_retval = ecall_evaluate_decryption(_in_p_files, ms->ms_file_number, _tmp_total_size);
-err:
-	if (_in_p_files) free(_in_p_files);
-
-	return status;
-}
-
 SGX_EXTERNC const struct {
 	size_t nr_ecall;
-	struct {void* ecall_addr; uint8_t is_priv;} ecall_table[13];
+	struct {void* ecall_addr; uint8_t is_priv;} ecall_table[12];
 } g_ecall_table = {
-	13,
+	12,
 	{
 		{(void*)(uintptr_t)sgx_ecall_init_ra, 0},
 		{(void*)(uintptr_t)sgx_ecall_close_ra, 0},
@@ -759,26 +724,25 @@ SGX_EXTERNC const struct {
 		{(void*)(uintptr_t)sgx_ecall_put_keys, 0},
 		{(void*)(uintptr_t)sgx_ecall_heartbeat_process, 0},
 		{(void*)(uintptr_t)sgx_ecall_perform_statistics, 0},
-		{(void*)(uintptr_t)sgx_ecall_evaluate_decryption, 0},
 	}
 };
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[10][13];
+	uint8_t entry_table[10][12];
 } g_dyn_entry_table = {
 	10,
 	{
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
 	}
 };
 
