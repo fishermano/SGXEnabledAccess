@@ -7,6 +7,48 @@
 
 extern key_set_t *device_keys;
 
+sgx_status_t ecall_perform_dec(uint8_t* p_secret, uint32_t secret_size, uint8_t* gcm_mac, uint8_t dev_id){
+  myprintf("testing enclave function: ecall_perform_dec()\n");
+
+  if( 0 == hb_assert() ){
+      myprintf("!!!Heartbeat mechanism force the enclave not available!!!\n");
+      return SGX_ERROR_UNEXPECTED;
+  }
+
+  if(NULL == device_keys){
+    myprintf("current key set is null, keys can be requested or uncovered from second storage\n");
+    return SGX_ERROR_SERVICE_UNAVAILABLE;
+  }
+
+  sgx_status_t ret = SGX_SUCCESS;
+
+  uint8_t dec_key[16] = {0};
+
+  switch (dev_id){
+    case 0:
+      memcpy(&dec_key[0], device_keys->device_keys[0], 16);
+      break;
+    case 1:
+      memcpy(&dec_key[0], device_keys->device_keys[1], 16);
+      break;
+    case 2:
+      memcpy(&dec_key[0], device_keys->device_keys[2], 16);
+      break;
+    case 3:
+      memcpy(&dec_key[0], device_keys->device_keys[3], 16);
+      break;
+  }
+
+  dev_data_t *data = (dev_data_t *)malloc(sizeof(dev_data_t));
+
+  uint8_t aes_gcm_iv[12] = {0};
+  ret = sgx_rijndael128GCM_decrypt(&dec_key, p_secret, secret_size, &data->size, &aes_gcm_iv[0], 12, NULL, 0, (const sgx_aes_gcm_128bit_tag_t *)(gcm_mac));
+
+  return ret;
+
+}
+
+
 sgx_status_t ecall_perform_statistics(uint8_t* p_secret_1, uint32_t secret_size_1, uint8_t* gcm_mac_1, uint8_t dev_id_1,  uint8_t* p_secret_2, uint32_t secret_size_2, uint8_t* gcm_mac_2, uint8_t dev_id_2, uint32_t *result){
   myprintf("testing enclave function: ecall_perform_statistics()\n");
 
@@ -73,7 +115,6 @@ sgx_status_t ecall_perform_statistics(uint8_t* p_secret_1, uint32_t secret_size_
     ret = sgx_rijndael128GCM_decrypt(&secret_key_2, p_secret_2, secret_size_2, &data_2->size, &aes_gcm_iv[0], 12, NULL, 0, (const sgx_aes_gcm_128bit_tag_t *)(gcm_mac_2));
 
     uint32_t i;
-
 
     for(i=0;i<data_1->size;i++){
         *result = *result + data_1->data[i];

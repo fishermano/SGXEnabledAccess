@@ -72,7 +72,7 @@ void *heartbeat_event_loop(void *hb_freq){
 
 
   while(1){
-    printf("\n\n=======waiting for hcp's heartbeat synchronization request=======\n");
+    printf("\n\n=======waiting for sp's heartbeat synchronization request=======\n");
     if((hb_connect_fd = accept(hb_socket_fd, (struct sockaddr*)NULL, NULL)) == -1 ){
       printf("trusted broker accept socket error: %s(errno: %d)", strerror(errno), errno);
     }
@@ -156,7 +156,7 @@ int main(int argc, char** argv){
 
   while(1){
 
-    printf("\n\n=======waiting for hcp's request=======\n");
+    printf("\n\n=======waiting for sp's request=======\n");
     if( (connect_fd = accept(socket_fd, (struct sockaddr*)NULL, NULL)) == -1 ){
       printf("trusted broker accept socket error: %s(errno: %d)", strerror(errno), errno);
       continue;
@@ -167,8 +167,8 @@ int main(int argc, char** argv){
     bool kr_is_done = false;
     do{
 
-      //receive package header from hcp
-      printf("+++++++trusted broker receiving request from hcp+++++++\n");
+      //receive package header from sp
+      printf("+++++++trusted broker receiving request from sp+++++++\n");
 
       char *req_data_buf = (char *)malloc(PKG_SIZE);
       int n = recv(connect_fd, req_data_buf, PKG_SIZE, 0);

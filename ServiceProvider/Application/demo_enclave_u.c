@@ -93,6 +93,14 @@ typedef struct ms_ecall_perform_statistics_t {
 	uint32_t* ms_result;
 } ms_ecall_perform_statistics_t;
 
+typedef struct ms_ecall_perform_dec_t {
+	sgx_status_t ms_retval;
+	uint8_t* ms_p_secret;
+	uint32_t ms_secret_size;
+	uint8_t* ms_gcm_mac;
+	uint8_t ms_dev_id;
+} ms_ecall_perform_dec_t;
+
 typedef struct ms_ocall_print_string_t {
 	char* ms_str;
 } ms_ocall_print_string_t;
@@ -404,6 +412,19 @@ sgx_status_t ecall_perform_statistics(sgx_enclave_id_t eid, sgx_status_t* retval
 	ms.ms_dev_id_2 = dev_id_2;
 	ms.ms_result = result;
 	status = sgx_ecall(eid, 11, &ocall_table_demo_enclave, &ms);
+	if (status == SGX_SUCCESS && retval) *retval = ms.ms_retval;
+	return status;
+}
+
+sgx_status_t ecall_perform_dec(sgx_enclave_id_t eid, sgx_status_t* retval, uint8_t* p_secret, uint32_t secret_size, uint8_t* gcm_mac, uint8_t dev_id)
+{
+	sgx_status_t status;
+	ms_ecall_perform_dec_t ms;
+	ms.ms_p_secret = p_secret;
+	ms.ms_secret_size = secret_size;
+	ms.ms_gcm_mac = gcm_mac;
+	ms.ms_dev_id = dev_id;
+	status = sgx_ecall(eid, 12, &ocall_table_demo_enclave, &ms);
 	if (status == SGX_SUCCESS && retval) *retval = ms.ms_retval;
 	return status;
 }
